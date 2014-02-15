@@ -12,8 +12,55 @@ defmodule Memcache.Protocol do
     key
   end
 
-  def to_binary(:SET, key, value, cas // 0, flag // 0, expiry // 0) do
+  def to_binary(:DELETE, key) do
+    bcat([<<0x80>>, <<0x04>>]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<<0x00>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    << byte_size(key) :: size(32) >> <>
+    bcat([<<0x00 :: size(32)>>, <<0x00 :: size(64)>>]) <>
+    key
+  end
+
+  def to_binary(command, key, value) do
+    to_binary(command, key, value, 0, 0, 0)
+  end
+
+  def to_binary(command, key, value, cas) do
+    to_binary(command, key, value, cas, 0, 0)
+  end
+
+  def to_binary(command, key, value, cas, flag) do
+    to_binary(command, key, value, cas, flag, 0)
+  end
+
+  def to_binary(:SET, key, value, cas, flag, expiry) do
     bcat([<<0x80>>, <<0x01>>]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
+    << 0x00 :: size(32) >> <>
+    << cas :: size(64) >> <>
+    << flag :: size(32) >> <>
+    << expiry :: size(32) >> <>
+    key <>
+    value
+  end
+
+  def to_binary(:ADD, key, value, cas, flag, expiry) do
+    bcat([<<0x80>>, <<0x02>>]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
+    << 0x00 :: size(32) >> <>
+    << cas :: size(64) >> <>
+    << flag :: size(32) >> <>
+    << expiry :: size(32) >> <>
+    key <>
+    value
+  end
+
+  def to_binary(:REPLACE, key, value, cas, flag, expiry) do
+    bcat([<<0x80>>, <<0x03>>]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
@@ -52,6 +99,18 @@ defmodule Memcache.Protocol do
   end
 
   def parse_body(header(status: 0x0000, opcode: 0x01), :empty) do
+    { :ok }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: 0x02), :empty) do
+    { :ok }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: 0x03), :empty) do
+    { :ok }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: 0x04), :empty) do
     { :ok }
   end
 

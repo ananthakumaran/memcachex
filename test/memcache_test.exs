@@ -10,6 +10,15 @@ defmodule MemcacheTest do
              {:GET, ["hello"], { :ok, "world" }},
              {:SET, ["hello", "move on"], { :ok }},
              {:GET, ["hello"], { :ok, "move on" }},
+             {:ADD, ["hello", "world"], { :error, "Key exists" }},
+             {:ADD, ["add", "world"], { :ok }},
+             {:DELETE, ["add"], { :ok }},
+             {:REPLACE, ["add", "world"], { :error, "Key not found" }},
+             {:ADD, ["add", "world"], { :ok }},
+             {:REPLACE, ["add", "world"], { :ok }},
+             {:DELETE, ["add"], { :ok }},
+             {:DELETE, ["hello"], { :ok }},
+             {:DELETE, ["unkown"], { :error, "Key not found" }}
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
