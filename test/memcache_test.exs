@@ -4,10 +4,14 @@ defmodule MemcacheTest do
 
   test "commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
-    cases = [{:get, ["unknown"], "Not found"}]
+    cases = [
+             {:GET, ["unknown"], { :error, "Key not found" }},
+             {:SET, ["hello", "world"], { :ok }},
+             {:GET, ["hello"], { :ok, "world" }}
+            ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
-      assert(Connection.execute(pid, command, args) == { :ok, response })
+      assert(Connection.execute(pid, command, args) == response)
     end)
   end
 end

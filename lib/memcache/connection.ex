@@ -42,22 +42,39 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({ :execute, command, args }, _from, state(sock: sock) = s) do
-    packet = Protocol.to_binary(command, args)
+    packet = apply(Protocol, :to_binary, [command | args])
     case :gen_tcp.send(sock, packet) do
       :ok ->
-        case :gen_tcp.recv(sock, 24) do
-          { :ok, raw_header } ->
-            header = Protocol.parse_header(raw_header)
-            body_size = Protocol.total_body_size(header)
-            case :gen_tcp.recv(sock, body_size) do
-              { :ok, body } ->
-                response = Protocol.parse_body(header, body)
-                { :reply, {:ok, response}, s }
-              { :error, reason } -> { :stop, :normal, reason, s }
-            end
-          { :error, reason } -> { :stop, :normal, reason, s }
+        if Protocol.wait_for_response?(command) do
+          recv_response(s)
+        else
+          { :reply, { :ok }, s }
         end
       { :error, reason } -> { :stop, :normal, reason, s }
+    end
+  end
+
+  def recv_response(state(sock: sock) = s) do
+    case :gen_tcp.recv(sock, 24) do
+      { :ok, raw_header } ->
+        header = Protocol.parse_header(raw_header)
+        recv_body(header, s)
+      { :error, reason } -> { :stop, :normal, reason, s }
+    end
+  end
+
+  def recv_body(header, state(sock: sock) = s) do
+    body_size = Protocol.total_body_size(header)
+    if body_size > 0 do
+      case :gen_tcp.recv(sock, body_size) do
+        { :ok, body } ->
+          response = Protocol.parse_body(header, body)
+          { :reply, response, s }
+        { :error, reason } -> { :stop, :normal, reason, s }
+      end
+    else
+      response = Protocol.parse_body(header, :empty)
+      { :reply, response, s }
     end
   end
 
