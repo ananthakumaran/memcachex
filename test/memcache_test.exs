@@ -18,7 +18,18 @@ defmodule MemcacheTest do
              {:REPLACE, ["add", "world"], { :ok }},
              {:DELETE, ["add"], { :ok }},
              {:DELETE, ["hello"], { :ok }},
-             {:DELETE, ["unkown"], { :error, "Key not found" }}
+             {:DELETE, ["unkown"], { :error, "Key not found" }},
+             {:INCREMENT, ["count", 1, 5], { :ok, 5 }},
+             {:INCREMENT, ["count", 1, 5], { :ok, 6 }},
+             {:INCREMENT, ["count", 5, 1], { :ok, 11 }},
+             {:DELETE, ["count"], { :ok }},
+             {:DECREMENT, ["count", 1, 5], { :ok, 5 }},
+             {:DECREMENT, ["count", 1, 5], { :ok, 4 }},
+             {:DECREMENT, ["count", 6, 5], { :ok, 0 }},
+             {:DELETE, ["count"], { :ok }},
+             {:INCREMENT, ["count", 6, 5, 0, 0xFFFFFFFF], { :error, "Key not found" }},
+             {:INCREMENT, ["count", 6, 5, 0, 0x05], { :ok, 5 }},
+             {:DELETE, ["count"], { :ok }},
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
