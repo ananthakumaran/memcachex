@@ -7,7 +7,9 @@ defmodule MemcacheTest do
     cases = [
              {:GET, ["unknown"], { :error, "Key not found" }},
              {:SET, ["hello", "world"], { :ok }},
-             {:GET, ["hello"], { :ok, "world" }}
+             {:GET, ["hello"], { :ok, "world" }},
+             {:SET, ["hello", "move on"], { :ok }},
+             {:GET, ["hello"], { :ok, "move on" }},
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->

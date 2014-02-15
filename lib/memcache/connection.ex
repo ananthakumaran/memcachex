@@ -44,12 +44,7 @@ defmodule Memcache.Connection do
   def handle_call({ :execute, command, args }, _from, state(sock: sock) = s) do
     packet = apply(Protocol, :to_binary, [command | args])
     case :gen_tcp.send(sock, packet) do
-      :ok ->
-        if Protocol.wait_for_response?(command) do
-          recv_response(s)
-        else
-          { :reply, { :ok }, s }
-        end
+      :ok -> recv_response(s)
       { :error, reason } -> { :stop, :normal, reason, s }
     end
   end
