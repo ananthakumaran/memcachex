@@ -30,6 +30,8 @@ defmodule MemcacheTest do
              {:INCREMENT, ["count", 6, 5, 0, 0xFFFFFFFF], { :error, "Key not found" }},
              {:INCREMENT, ["count", 6, 5, 0, 0x05], { :ok, 5 }},
              {:DELETE, ["count"], { :ok }},
+             {:QUIT, [], { :ok }},
+             {:DELETE, ["count"], :closed },
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->

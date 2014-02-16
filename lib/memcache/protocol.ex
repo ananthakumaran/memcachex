@@ -3,21 +3,28 @@
 defmodule Memcache.Protocol do
   import Memcache.BinaryUtils
 
+  def to_binary(:QUIT) do
+    bcat([<< 0x80 >>, << 0x07 >>, << 0x00 :: size(16) >>,
+          << 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
+          << 0x00 :: size(32) >>, << 0x00 :: size(32) >>,
+          << 0x00 :: size(64) >> ])
+  end
+
   def to_binary(:GET, key) do
-    bcat([<<0x80>>, <<0x00>>]) <>
+    bcat([<< 0x80 >>, << 0x00 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x00>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) :: size(32) >> <>
-    bcat([<<0x00 :: size(32)>>, <<0x00 :: size(64)>>]) <>
+    bcat([<< 0x00 :: size(32) >>, << 0x00 :: size(64) >>]) <>
     key
   end
 
   def to_binary(:DELETE, key) do
-    bcat([<<0x80>>, <<0x04>>]) <>
+    bcat([<< 0x80 >>, << 0x04 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x00>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) :: size(32) >> <>
-    bcat([<<0x00 :: size(32)>>, <<0x00 :: size(64)>>]) <>
+    bcat([<< 0x00 :: size(32) >>, << 0x00 :: size(64) >>]) <>
     key
   end
 
@@ -35,9 +42,9 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:INCREMENT, key, delta, initial, cas, expiry) do
-    bcat([<<0x80>>, <<0x05>>]) <>
+    bcat([<< 0x80 >>, << 0x05 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x14>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 20 :: size(32) >> <>
     << 0x00 :: size(32) >> <>
     << cas :: size(64) >> <>
@@ -48,9 +55,9 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:DECREMENT, key, delta, initial, cas, expiry) do
-    bcat([<<0x80>>, <<0x06>>]) <>
+    bcat([<< 0x80 >>, << 0x06 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x14>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 20 :: size(32) >> <>
     << 0x00 :: size(32) >> <>
     << cas :: size(64) >> <>
@@ -61,9 +68,9 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:SET, key, value, cas, flag, expiry) do
-    bcat([<<0x80>>, <<0x01>>]) <>
+    bcat([<< 0x80 >>, << 0x01 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
     << 0x00 :: size(32) >> <>
     << cas :: size(64) >> <>
@@ -74,9 +81,9 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:ADD, key, value, cas, flag, expiry) do
-    bcat([<<0x80>>, <<0x02>>]) <>
+    bcat([<< 0x80 >>, << 0x02 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
     << 0x00 :: size(32) >> <>
     << cas :: size(64) >> <>
@@ -87,9 +94,9 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:REPLACE, key, value, cas, flag, expiry) do
-    bcat([<<0x80>>, <<0x03>>]) <>
+    bcat([<< 0x80 >>, << 0x03 >>]) <>
     << byte_size(key) :: size(16) >> <>
-    bcat([<<0x08>>, <<0x00>>, <<0x0000 :: size(16) >>]) <>
+    bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
     << 0x00 :: size(32) >> <>
     << cas :: size(64) >> <>
@@ -148,6 +155,10 @@ defmodule Memcache.Protocol do
   end
 
   def parse_body(header(status: 0x0000, opcode: 0x04), :empty) do
+    { :ok }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: 0x07), :empty) do
     { :ok }
   end
 
