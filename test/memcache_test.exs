@@ -5,6 +5,7 @@ defmodule MemcacheTest do
   test "commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
     cases = [
+             {:FLUSH, [], { :ok }},
              {:GET, ["unknown"], { :error, "Key not found" }},
              {:SET, ["hello", "world"], { :ok }},
              {:GET, ["hello"], { :ok, "world" }},
@@ -31,6 +32,11 @@ defmodule MemcacheTest do
              {:INCREMENT, ["count", 6, 5, 0, 0x05], { :ok, 5 }},
              {:DELETE, ["count"], { :ok }},
              {:NOOP, [], { :ok }},
+             {:APPEND, ["new", "hope"], { :error, "Item not stored" }},
+             {:SET, ["new", "new "], { :ok }},
+             {:APPEND, ["new", "hope"], { :ok }},
+             {:GET, ["new"], { :ok, "new hope"}},
+             {:DELETE, ["new"], { :ok }},
              {:SET, ["name", "ananth"], { :ok }},
              {:FLUSH, [0xFFFF], { :ok }},
              {:GET, ["name"], { :ok, "ananth" }},

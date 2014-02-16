@@ -65,6 +65,16 @@ defmodule Memcache.Protocol do
     to_binary(command, key, 0)
   end
 
+  def to_binary(:APPEND, key, value) do
+    bcat([ request, opb(:APPEND)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) + byte_size(value) :: size(32) >> <>
+    bcat([ opaque, << 0x00 :: size(64) >>]) <>
+    key <>
+    value
+  end
+
   def to_binary(command, key, value) do
     to_binary(command, key, value, 0, 0, 0)
   end
@@ -189,6 +199,7 @@ defmodule Memcache.Protocol do
   defparse_empty(:QUIT)
   defparse_empty(:FLUSH)
   defparse_empty(:NOOP)
+  defparse_empty(:APPEND)
 
   defparse_error(0x0001, "Key not found")
   defparse_error(0x0002, "Key exists")
