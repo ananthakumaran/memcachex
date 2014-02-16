@@ -41,6 +41,14 @@ defmodule Memcache.BinaryUtils do
     end
   end
 
+  defmacro defparse_empty(name) do
+    quote do
+      def parse_body(header(status: 0x0000, opcode: op(unquote(name))), :empty) do
+        { :ok }
+      end
+    end
+  end
+
   defmacro bcat(binaries) do
     { parts, _ } = Code.eval_quoted(binaries, [], __CALLER__)
     quote do

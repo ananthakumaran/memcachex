@@ -164,29 +164,12 @@ defmodule Memcache.Protocol do
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:SET)), :empty) do
-    { :ok }
-  end
-
-  def parse_body(header(status: 0x0000, opcode: op(:ADD)), :empty) do
-    { :ok }
-  end
-
-  def parse_body(header(status: 0x0000, opcode: op(:REPLACE)), :empty) do
-    { :ok }
-  end
-
-  def parse_body(header(status: 0x0000, opcode: op(:DELETE)), :empty) do
-    { :ok }
-  end
-
-  def parse_body(header(status: 0x0000, opcode: op(:QUIT)), :empty) do
-    { :ok }
-  end
-
-  def parse_body(header(status: 0x0000, opcode: op(:FLUSH)), :empty) do
-    { :ok }
-  end
+  defparse_empty(:SET)
+  defparse_empty(:ADD)
+  defparse_empty(:REPLACE)
+  defparse_empty(:DELETE)
+  defparse_empty(:QUIT)
+  defparse_empty(:FLUSH)
 
   def parse_body(header(status: 0x0001), _rest) do
     { :error, "Key not found" }
