@@ -4,7 +4,7 @@ defmodule Memcache.Protocol do
   import Memcache.BinaryUtils
 
   def to_binary(:QUIT) do
-    bcat([<< 0x80 >>, << 0x07 >>, << 0x00 :: size(16) >>,
+    bcat([<< 0x80 >>, opb(:QUIT), << 0x00 :: size(16) >>,
           << 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
           << 0x00 :: size(32) >>, << 0x00 :: size(32) >>,
           << 0x00 :: size(64) >> ])
@@ -15,7 +15,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:GET, key) do
-    bcat([<< 0x80 >>, << 0x00 >>]) <>
+    bcat([<< 0x80 >>, opb(:GET)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) :: size(32) >> <>
@@ -24,7 +24,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:DELETE, key) do
-    bcat([<< 0x80 >>, << 0x04 >>]) <>
+    bcat([<< 0x80 >>, opb(:DELETE)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) :: size(32) >> <>
@@ -33,14 +33,14 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:FLUSH, 0) do
-    bcat([<< 0x80 >>, << 0x08 >>, << 0x00 :: size(16) >>,
+    bcat([<< 0x80 >>, opb(:FLUSH), << 0x00 :: size(16) >>,
           << 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
           << 0x00 :: size(32) >>, << 0x00 :: size(32) >>,
-          << 0x00 :: size(64) >> ])
+          << 0x00 :: size(64) >>])
   end
 
   def to_binary(:FLUSH, expiry) do
-    bcat([<< 0x80 >>, << 0x08 >>, << 0x00 :: size(16) >>,
+    bcat([<< 0x80 >>, opb(:FLUSH), << 0x00 :: size(16) >>,
           << 0x04 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
           << 0x04 :: size(32) >>, << 0x00 :: size(32) >>,
           << 0x00 :: size(64) >> ]) <>
@@ -64,7 +64,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:INCREMENT, key, delta, initial, cas, expiry) do
-    bcat([<< 0x80 >>, << 0x05 >>]) <>
+    bcat([<< 0x80 >>, opb(:INCREMENT)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 20 :: size(32) >> <>
@@ -77,7 +77,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:DECREMENT, key, delta, initial, cas, expiry) do
-    bcat([<< 0x80 >>, << 0x06 >>]) <>
+    bcat([<< 0x80 >>, opb(:DECREMENT)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 20 :: size(32) >> <>
@@ -90,7 +90,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:SET, key, value, cas, flag, expiry) do
-    bcat([<< 0x80 >>, << 0x01 >>]) <>
+    bcat([<< 0x80 >>, opb(:SET)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
@@ -103,7 +103,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:ADD, key, value, cas, flag, expiry) do
-    bcat([<< 0x80 >>, << 0x02 >>]) <>
+    bcat([<< 0x80 >>, opb(:ADD)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
@@ -116,7 +116,7 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:REPLACE, key, value, cas, flag, expiry) do
-    bcat([<< 0x80 >>, << 0x03 >>]) <>
+    bcat([<< 0x80 >>, opb(:REPLACE)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
     << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
@@ -148,43 +148,43 @@ defmodule Memcache.Protocol do
     size
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x00, extra_length: extra_length, total_body_length: total_body_length), rest) do
+  def parse_body(header(status: 0x0000, opcode: op(:GET), extra_length: extra_length, total_body_length: total_body_length), rest) do
     value_size = (total_body_length - extra_length)
     << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x05), rest) do
+  def parse_body(header(status: 0x0000, opcode: op(:INCREMENT)), rest) do
     << value :: size(64) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x06), rest) do
+  def parse_body(header(status: 0x0000, opcode: op(:DECREMENT)), rest) do
     << value :: size(64) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x01), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:SET)), :empty) do
     { :ok }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x02), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:ADD)), :empty) do
     { :ok }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x03), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:REPLACE)), :empty) do
     { :ok }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x04), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:DELETE)), :empty) do
     { :ok }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x07), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:QUIT)), :empty) do
     { :ok }
   end
 
-  def parse_body(header(status: 0x0000, opcode: 0x08), :empty) do
+  def parse_body(header(status: 0x0000, opcode: op(:FLUSH)), :empty) do
     { :ok }
   end
 
