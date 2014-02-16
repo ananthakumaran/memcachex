@@ -44,12 +44,20 @@ defmodule Memcache.Connection do
   def handle_call({ :execute, command, args }, _from, state(sock: sock) = s) do
     packet = apply(Protocol, :to_binary, [command | args])
     case :gen_tcp.send(sock, packet) do
-      :ok -> recv_response(s)
+      :ok -> recv_response(command, s)
       { :error, reason } -> { :stop, :normal, reason, s }
     end
   end
 
-  def recv_response(state(sock: sock) = s) do
+  def recv_response(:STAT, s) do
+    recv_stat(s, HashDict.new)
+  end
+
+  def recv_response(_command, s) do
+    recv_header(s)
+  end
+
+  def recv_header(state(sock: sock) = s) do
     case :gen_tcp.recv(sock, 24) do
       { :ok, raw_header } ->
         header = Protocol.parse_header(raw_header)
@@ -70,6 +78,14 @@ defmodule Memcache.Connection do
     else
       response = Protocol.parse_body(header, :empty)
       { :reply, response, s }
+    end
+  end
+
+  def recv_stat(s, results) do
+    case recv_header(s) do
+      { :reply, { :ok, :done }, _ } -> { :reply, { :ok, results }, s }
+      { :reply, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
+      err -> err
     end
   end
 

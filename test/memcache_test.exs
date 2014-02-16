@@ -56,8 +56,13 @@ defmodule MemcacheTest do
     end)
   end
 
-  test "version command" do
+  test "misc command" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
-    { :ok, _version } = Connection.execute(pid, :VERSION, [])
+    { :ok, _stat } = Connection.execute(pid, :STAT, [])
+    { :ok, _stat } = Connection.execute(pid, :STAT, ["items"])
+    { :ok, _stat } = Connection.execute(pid, :STAT, ["slabs"])
+    { :ok, _stat } = Connection.execute(pid, :STAT, ["settings"])
+    { :ok, version } = Connection.execute(pid, :VERSION, [])
+    assert  version =~ %r/\d+\.\d+\.\d+/
   end
 end

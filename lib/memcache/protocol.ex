@@ -24,8 +24,24 @@ defmodule Memcache.Protocol do
           << 0x00 :: size(64) >> ])
   end
 
+  def to_binary(:STAT) do
+    bcat([ request, opb(:STAT), << 0x00 :: size(16) >>,
+          << 0x00 >>, datatype, reserved,
+          << 0x00 :: size(32) >>, opaque,
+          << 0x00 :: size(64) >> ])
+  end
+
   def to_binary(command) do
     to_binary(command, 0)
+  end
+
+  def to_binary(:STAT, key) do
+    bcat([ request, opb(:STAT)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) :: size(32) >> <>
+    bcat([ opaque, << 0x00 :: size(64) >>]) <>
+    key
   end
 
   def to_binary(:GET, key) do
@@ -201,6 +217,18 @@ defmodule Memcache.Protocol do
     << value :: size(64) >> = rest
     { :ok, value }
   end
+
+  def parse_body(header(status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0), _rest) do
+    { :ok, :done }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: op(:STAT), key_length: key_length, total_body_length: total_body_length), rest) do
+    value_size = (total_body_length - key_length)
+    << key :: bsize(key_length),  value :: bsize(value_size) >> = rest
+    { :ok, key, value }
+  end
+
+
 
   defparse_empty(:SET)
   defparse_empty(:ADD)
