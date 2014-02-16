@@ -30,6 +30,7 @@ defmodule MemcacheTest do
              {:INCREMENT, ["count", 6, 5, 0, 0xFFFFFFFF], { :error, "Key not found" }},
              {:INCREMENT, ["count", 6, 5, 0, 0x05], { :ok, 5 }},
              {:DELETE, ["count"], { :ok }},
+             {:NOOP, [], { :ok }},
              {:SET, ["name", "ananth"], { :ok }},
              {:FLUSH, [0xFFFF], { :ok }},
              {:GET, ["name"], { :ok, "ananth" }},
