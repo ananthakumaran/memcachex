@@ -171,35 +171,12 @@ defmodule Memcache.Protocol do
   defparse_empty(:QUIT)
   defparse_empty(:FLUSH)
 
-  def parse_body(header(status: 0x0001), _rest) do
-    { :error, "Key not found" }
-  end
-
-  def parse_body(header(status: 0x0002), _rest) do
-    { :error, "Key exists" }
-  end
-
-  def parse_body(header(status: 0x0003), _rest) do
-    { :error, "Value too large" }
-  end
-
-  def parse_body(header(status: 0x0004), _rest) do
-    { :error, "Invalid arguments" }
-  end
-
-  def parse_body(header(status: 0x0005), _rest) do
-    { :error, "Item not stored" }
-  end
-
-  def parse_body(header(status: 0x0006), _rest) do
-    { :error, "Incr/Decr on non-numeric value" }
-  end
-
-  def parse_body(header(status: 0x0081), _rest) do
-    { :error, "Unknown command" }
-  end
-
-  def parse_body(header(status: 0x0082), _rest) do
-    { :error, "Out of memory" }
-  end
+  defparse_error(0x0001, "Key not found")
+  defparse_error(0x0002, "Key exists")
+  defparse_error(0x0003, "Value too large")
+  defparse_error(0x0004, "Invalid arguments")
+  defparse_error(0x0005, "Item not stored")
+  defparse_error(0x0006, "Incr/Decr on non-numeric value")
+  defparse_error(0x0081, "Unknown command")
+  defparse_error(0x0082, "Out of memory")
 end
