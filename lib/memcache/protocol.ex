@@ -17,6 +17,13 @@ defmodule Memcache.Protocol do
           << 0x00 :: size(64) >> ])
   end
 
+  def to_binary(:VERSION) do
+    bcat([<< 0x80 >>, opb(:VERSION), << 0x00 :: size(16) >>,
+          << 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
+          << 0x00 :: size(32) >>, << 0x00 :: size(32) >>,
+          << 0x00 :: size(64) >> ])
+  end
+
   def to_binary(command) do
     to_binary(command, 0)
   end
@@ -159,6 +166,10 @@ defmodule Memcache.Protocol do
     value_size = (total_body_length - extra_length)
     << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
     { :ok, value }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: op(:VERSION)), rest) do
+    { :ok, rest }
   end
 
   def parse_body(header(status: 0x0000, opcode: op(:INCREMENT)), rest) do

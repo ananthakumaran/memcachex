@@ -44,4 +44,9 @@ defmodule MemcacheTest do
       assert(Connection.execute(pid, command, args) == response)
     end)
   end
+
+  test "version command" do
+    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    { :ok, _version } = Connection.execute(pid, :VERSION, [])
+  end
 end
