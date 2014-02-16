@@ -10,6 +10,10 @@ defmodule Memcache.Protocol do
           << 0x00 :: size(64) >> ])
   end
 
+  def to_binary(command) do
+    to_binary(command, 0)
+  end
+
   def to_binary(:GET, key) do
     bcat([<< 0x80 >>, << 0x00 >>]) <>
     << byte_size(key) :: size(16) >> <>
@@ -28,10 +32,28 @@ defmodule Memcache.Protocol do
     key
   end
 
+  def to_binary(:FLUSH, 0) do
+    bcat([<< 0x80 >>, << 0x08 >>, << 0x00 :: size(16) >>,
+          << 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
+          << 0x00 :: size(32) >>, << 0x00 :: size(32) >>,
+          << 0x00 :: size(64) >> ])
+  end
+
+  def to_binary(:FLUSH, expiry) do
+    bcat([<< 0x80 >>, << 0x08 >>, << 0x00 :: size(16) >>,
+          << 0x04 >>, << 0x00 >>, << 0x0000 :: size(16) >>,
+          << 0x04 :: size(32) >>, << 0x00 :: size(32) >>,
+          << 0x00 :: size(64) >> ]) <>
+    << expiry :: size(32) >>
+  end
+
+  def to_binary(command, key) do
+    to_binary(command, key, 0)
+  end
+
   def to_binary(command, key, value) do
     to_binary(command, key, value, 0, 0, 0)
   end
-
 
   def to_binary(command, key, value, cas) do
     to_binary(command, key, value, cas, 0, 0)
@@ -159,6 +181,10 @@ defmodule Memcache.Protocol do
   end
 
   def parse_body(header(status: 0x0000, opcode: 0x07), :empty) do
+    { :ok }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: 0x08), :empty) do
     { :ok }
   end
 
