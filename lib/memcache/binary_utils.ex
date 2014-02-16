@@ -69,4 +69,20 @@ defmodule Memcache.BinaryUtils do
       [ size(unquote(bytesize)), binary ]
     end
   end
+
+  defmacro request do
+    quote do: << 0x80 >>
+  end
+
+  defmacro reserved do
+    quote do: << 0x0000 :: size(16) >>
+  end
+
+  defmacro datatype do
+    quote do: << 0x00 >>
+  end
+
+  defmacro opaque do
+    quote do: << 0x00 :: size(32) >>
+  end
 end
