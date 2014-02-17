@@ -53,6 +53,15 @@ defmodule Memcache.Protocol do
     key
   end
 
+  def to_binary(:GETK, key) do
+    bcat([ request, opb(:GETK)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) :: size(32) >> <>
+    bcat([ opaque, << 0x00 :: size(64) >>]) <>
+    key
+  end
+
   def to_binary(:DELETE, key) do
     bcat([ request, opb(:DELETE)]) <>
     << byte_size(key) :: size(16) >> <>
@@ -202,6 +211,12 @@ defmodule Memcache.Protocol do
     value_size = (total_body_length - extra_length)
     << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
     { :ok, value }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length), rest) do
+    value_size = (total_body_length - extra_length - key_length)
+    << _extra :: bsize(extra_length), key :: bsize(key_length), value :: bsize(value_size) >> = rest
+    { :ok, key, value }
   end
 
   def parse_body(header(status: 0x0000, opcode: op(:VERSION)), rest) do

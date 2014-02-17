@@ -11,6 +11,8 @@ defmodule MemcacheTest do
              {:GET, ["hello"], { :ok, "world" }},
              {:SET, ["hello", "move on"], { :ok }},
              {:GET, ["hello"], { :ok, "move on" }},
+             {:GETK, ["hello"], { :ok, "hello", "move on" }},
+             {:GETK, ["unknown"], { :error, "Key not found" }},
              {:ADD, ["hello", "world"], { :error, "Key exists" }},
              {:ADD, ["add", "world"], { :ok }},
              {:DELETE, ["add"], { :ok }},
