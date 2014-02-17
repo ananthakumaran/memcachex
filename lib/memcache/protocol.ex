@@ -35,6 +35,14 @@ defmodule Memcache.Protocol do
     to_binary(command, 0)
   end
 
+  def to_binary(:NOOP, opaque) do
+    bcat([ request, opb(:NOOP), << 0x00 :: size(16) >>,
+          << 0x00 >>, datatype, reserved,
+          << 0x00 :: size(32) >>]) <>
+      << opaque :: size(32) >> <>
+      << 0x00 :: size(64) >>
+  end
+
   def to_binary(:STAT, key) do
     bcat([ request, opb(:STAT)]) <>
     << byte_size(key) :: size(16) >> <>
@@ -88,6 +96,16 @@ defmodule Memcache.Protocol do
 
   def to_binary(command, key) do
     to_binary(command, key, 0)
+  end
+
+  def to_binary(:GETQ, id, key) do
+    bcat([ request, opb(:GETQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) :: size(32) >> <>
+    << id :: size(32) >> <>
+    bcat([<< 0x00 :: size(64) >>]) <>
+    key
   end
 
   def to_binary(:APPEND, key, value) do
@@ -213,6 +231,12 @@ defmodule Memcache.Protocol do
     { :ok, value }
   end
 
+  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque), rest) do
+    value_size = (total_body_length - extra_length)
+    << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
+    { opaque, { :ok, value } }
+  end
+
   def parse_body(header(status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length), rest) do
     value_size = (total_body_length - extra_length - key_length)
     << _extra :: bsize(extra_length), key :: bsize(key_length), value :: bsize(value_size) >> = rest
@@ -243,8 +267,6 @@ defmodule Memcache.Protocol do
     { :ok, key, value }
   end
 
-
-
   defparse_empty(:SET)
   defparse_empty(:ADD)
   defparse_empty(:REPLACE)
@@ -263,4 +285,8 @@ defmodule Memcache.Protocol do
   defparse_error(0x0006, "Incr/Decr on non-numeric value")
   defparse_error(0x0081, "Unknown command")
   defparse_error(0x0082, "Out of memory")
+
+  def quiet_response(:GETQ) do
+    { :ok, "Key not found" }
+  end
 end

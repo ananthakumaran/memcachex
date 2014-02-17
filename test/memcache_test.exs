@@ -58,6 +58,25 @@ defmodule MemcacheTest do
     end)
   end
 
+  test "quiet commands" do
+    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    { :ok } = Connection.execute(pid, :SET, ["new", "hope"])
+    cases = [
+             { [{:GETQ, ["hello"]},
+                {:GETQ, ["hello"]}],
+               { :ok, [{ :ok, "Key not found" },
+                       { :ok, "Key not found" }] }},
+             { [{:GETQ, ["new"]},
+                {:GETQ, ["new"]}],
+               { :ok, [{ :ok, "hope" },
+                       { :ok, "hope" }] }}
+            ]
+
+    Enum.each(cases, fn ({ commands, response }) ->
+      assert(Connection.execute_quiet(pid, commands) == response)
+    end)
+  end
+
   test "misc command" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
     { :ok, _stat } = Connection.execute(pid, :STAT, [])
