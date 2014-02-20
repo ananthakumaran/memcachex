@@ -77,6 +77,15 @@ defmodule MemcacheTest do
                 {:GETKQ, ["unknown"]}],
                { :ok, [{ :ok, "new", "hope" },
                        { :ok, "Key not found" }] }},
+
+             { [{:SETQ, ["hello", "WORLD"]},
+                {:GETQ, ["hello"]},
+                {:SETQ, ["hello", "world"]},
+                {:GETQ, ["hello"]}],
+               { :ok, [{ :ok },
+                       { :ok, "WORLD" },
+                       { :ok },
+                       { :ok, "world" }] }}
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->
