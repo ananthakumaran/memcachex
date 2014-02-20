@@ -255,6 +255,19 @@ defmodule Memcache.Protocol do
     value
   end
 
+  def to_binary(:REPLACEQ, id, key, value, cas, flag, expiry) do
+    bcat([ request, opb(:REPLACEQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
+    << byte_size(key) + 8 + byte_size(value) :: size(32) >> <>
+    << id :: size(32) >> <>
+    << cas :: size(64) >> <>
+    << flag :: size(32) >> <>
+    << expiry :: size(32) >> <>
+    key <>
+    value
+  end
+
   defrecordp :header, [ :opcode, :key_length, :extra_length, :data_type, :status, :total_body_length, :opaque, :cas ]
 
   def parse_header(<<
@@ -359,6 +372,10 @@ defmodule Memcache.Protocol do
   end
 
   def quiet_response(:DELETEQ) do
+    { :ok }
+  end
+
+  def quiet_response(:REPLACEQ) do
     { :ok }
   end
 end

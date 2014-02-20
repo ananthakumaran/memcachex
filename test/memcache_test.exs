@@ -103,6 +103,18 @@ defmodule MemcacheTest do
                        { :ok, "world" },
                        { :ok },
                        { :error, "Key not found" }] }},
+
+             { [{:REPLACEQ, ["add", "world"]},
+                {:ADDQ, ["add", "world"]},
+                {:REPLACEQ, ["add", "new"]},
+                {:GETQ, ["add"]},
+                {:DELETEQ, ["add"]}],
+               { :ok, [{ :error, "Key not found" },
+                       { :ok },
+                       { :ok },
+                       { :ok, "new" },
+                       { :ok }]}},
+
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->
