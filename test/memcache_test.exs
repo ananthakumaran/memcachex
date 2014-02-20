@@ -85,7 +85,16 @@ defmodule MemcacheTest do
                { :ok, [{ :ok },
                        { :ok, "WORLD" },
                        { :ok },
-                       { :ok, "world" }] }}
+                       { :ok, "world" }] }},
+
+             { [{:SETQ, ["hello", "world"]},
+                {:ADDQ, ["hello", "world"]},
+                {:ADDQ, ["add", "world"]},
+                {:GETQ, ["add"]}],
+               { :ok, [{ :ok },
+                       { :error, "Key exists" },
+                       { :ok },
+                       { :ok, "world" }] }},
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->

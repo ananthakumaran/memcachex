@@ -54,8 +54,11 @@ defmodule Memcache.BinaryUtils do
 
   defmacro defparse_error(code, error) do
     quote do
-      def parse_body(header(status: unquote(code)), _rest) do
+      def parse_body(header(status: unquote(code), opaque: 0x00), _rest) do
         { :error, unquote(error) }
+      end
+      def parse_body(header(status: unquote(code), opaque: opaque), _rest) do
+        { opaque, { :error, unquote(error) }}
       end
     end
   end
