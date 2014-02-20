@@ -118,6 +118,16 @@ defmodule Memcache.Protocol do
     key
   end
 
+  def to_binary(:DELETEQ, id, key) do
+    bcat([ request, opb(:DELETEQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
+    << byte_size(key) :: size(32) >> <>
+    << id :: size(32) >> <>
+    << 0x00 :: size(64) >> <>
+    key
+  end
+
   def to_binary(:APPEND, key, value) do
     bcat([ request, opb(:APPEND)]) <>
     << byte_size(key) :: size(16) >> <>
@@ -345,6 +355,10 @@ defmodule Memcache.Protocol do
   end
 
   def quiet_response(:ADDQ) do
+    { :ok }
+  end
+
+  def quiet_response(:DELETEQ) do
     { :ok }
   end
 end
