@@ -60,16 +60,23 @@ defmodule MemcacheTest do
 
   test "quiet commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    { :ok } = Connection.execute(pid, :FLUSH, [])
     { :ok } = Connection.execute(pid, :SET, ["new", "hope"])
     cases = [
              { [{:GETQ, ["hello"]},
                 {:GETQ, ["hello"]}],
                { :ok, [{ :ok, "Key not found" },
                        { :ok, "Key not found" }] }},
+
              { [{:GETQ, ["new"]},
                 {:GETQ, ["new"]}],
                { :ok, [{ :ok, "hope" },
-                       { :ok, "hope" }] }}
+                       { :ok, "hope" }] }},
+
+             { [{:GETKQ, ["new"]},
+                {:GETKQ, ["unknown"]}],
+               { :ok, [{ :ok, "new", "hope" },
+                       { :ok, "Key not found" }] }},
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->

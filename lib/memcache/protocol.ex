@@ -104,7 +104,17 @@ defmodule Memcache.Protocol do
     bcat([<< 0x00 >>, datatype, reserved]) <>
     << byte_size(key) :: size(32) >> <>
     << id :: size(32) >> <>
-    bcat([<< 0x00 :: size(64) >>]) <>
+    << 0x00 :: size(64) >> <>
+    key
+  end
+
+  def to_binary(:GETKQ, id, key) do
+    bcat([ request, opb(:GETKQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) :: size(32) >> <>
+    << id :: size(32) >> <>
+    << 0x00 :: size(64) >> <>
     key
   end
 
@@ -243,6 +253,12 @@ defmodule Memcache.Protocol do
     { :ok, key, value }
   end
 
+  def parse_body(header(status: 0x0000, opcode: op(:GETKQ), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length, opaque: opaque), rest) do
+    value_size = (total_body_length - extra_length - key_length)
+    << _extra :: bsize(extra_length), key :: bsize(key_length), value :: bsize(value_size) >> = rest
+    { opaque, { :ok, key, value }}
+  end
+
   def parse_body(header(status: 0x0000, opcode: op(:VERSION)), rest) do
     { :ok, rest }
   end
@@ -287,6 +303,10 @@ defmodule Memcache.Protocol do
   defparse_error(0x0082, "Out of memory")
 
   def quiet_response(:GETQ) do
+    { :ok, "Key not found" }
+  end
+
+  def quiet_response(:GETKQ) do
     { :ok, "Key not found" }
   end
 end
