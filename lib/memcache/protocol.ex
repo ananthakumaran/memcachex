@@ -307,7 +307,7 @@ defmodule Memcache.Protocol do
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque) = h, rest) do
+  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque), rest) do
     value_size = (total_body_length - extra_length)
     << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
     { opaque, { :ok, value } }
