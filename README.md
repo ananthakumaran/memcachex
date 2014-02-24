@@ -1,3 +1,5 @@
 # Memcache
 
-** TODO: Add description **
+Memcached client for Elixir
+
+
