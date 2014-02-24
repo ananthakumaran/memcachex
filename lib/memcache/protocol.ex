@@ -152,6 +152,28 @@ defmodule Memcache.Protocol do
     to_binary(command, key, value, 0, 0, 0)
   end
 
+  def to_binary(:APPENDQ, id, key, value) do
+    bcat([ request, opb(:APPENDQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) + byte_size(value) :: size(32) >> <>
+    << id :: size(32) >> <>
+    << 0x00 :: size(64) >> <>
+    key <>
+    value
+  end
+
+  def to_binary(:PREPENDQ, id, key, value) do
+    bcat([ request, opb(:PREPENDQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) + byte_size(value) :: size(32) >> <>
+    << id :: size(32) >> <>
+    << 0x00 :: size(64) >> <>
+    key <>
+    value
+  end
+
   def to_binary(command, key, value, cas) do
     to_binary(command, key, value, cas, 0, 0)
   end
@@ -399,5 +421,7 @@ defmodule Memcache.Protocol do
   def quiet_response(:REPLACEQ), do: { :ok }
   def quiet_response(:INCREMENTQ), do: { :ok }
   def quiet_response(:DECREMENTQ), do: { :ok }
+  def quiet_response(:APPENDQ), do: { :ok }
+  def quiet_response(:PREPENDQ), do: { :ok }
 
 end

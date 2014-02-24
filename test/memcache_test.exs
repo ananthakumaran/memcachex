@@ -163,6 +163,29 @@ defmodule MemcacheTest do
                        { :ok, "new" },
                        { :ok }]}},
 
+             { [{:DELETEQ, ["new"]},
+                {:APPENDQ, ["new", "hope"]},
+                {:SETQ, ["new", "new "]},
+                {:APPENDQ, ["new", "hope"]},
+                {:GETQ, ["new"]},
+                {:DELETEQ, ["new"]},
+                {:PREPENDQ, ["new", "hope"]},
+                {:SETQ, ["new", "hope"]},
+                {:PREPENDQ, ["new", "new "]},
+                {:GETQ, ["new"]},
+                {:DELETEQ, ["new"]}],
+               { :ok, [{ :ok },
+                       { :error, "Item not stored" },
+                       { :ok },
+                       { :ok },
+                       { :ok, "new hope"},
+                       { :ok },
+                       { :error, "Item not stored"},
+                       { :ok },
+                       { :ok },
+                       { :ok, "new hope"},
+                       { :ok }]}}
+
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->
