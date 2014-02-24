@@ -268,6 +268,19 @@ defmodule Memcache.Protocol do
     value
   end
 
+  def to_binary(:INCREMENTQ, id, key, delta, initial, cas, expiry) do
+    bcat([ request, opb(:INCREMENTQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
+    << byte_size(key) + 20 :: size(32) >> <>
+    << id :: size(32) >> <>
+    << cas :: size(64) >> <>
+    << delta :: size(64) >> <>
+    << initial :: size(64) >> <>
+    << expiry :: size(32) >> <>
+    key
+  end
+
   defrecordp :header, [ :opcode, :key_length, :extra_length, :data_type, :status, :total_body_length, :opaque, :cas ]
 
   def parse_header(<<
@@ -294,7 +307,7 @@ defmodule Memcache.Protocol do
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque), rest) do
+  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque) = h, rest) do
     value_size = (total_body_length - extra_length)
     << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
     { opaque, { :ok, value } }
@@ -319,6 +332,11 @@ defmodule Memcache.Protocol do
   def parse_body(header(status: 0x0000, opcode: op(:INCREMENT)), rest) do
     << value :: size(64) >> = rest
     { :ok, value }
+  end
+
+  def parse_body(header(status: 0x0000, opcode: op(:INCREMENTQ), opaque: opaque), rest) do
+    << value :: size(64) >> = rest
+    { opaque, { :ok, value }}
   end
 
   def parse_body(header(status: 0x0000, opcode: op(:DECREMENT)), rest) do
@@ -376,6 +394,10 @@ defmodule Memcache.Protocol do
   end
 
   def quiet_response(:REPLACEQ) do
+    { :ok }
+  end
+
+  def quiet_response(:INCREMENTQ) do
     { :ok }
   end
 end
