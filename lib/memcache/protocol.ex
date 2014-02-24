@@ -281,6 +281,19 @@ defmodule Memcache.Protocol do
     key
   end
 
+  def to_binary(:DECREMENTQ, id, key, delta, initial, cas, expiry) do
+    bcat([ request, opb(:DECREMENTQ)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
+    << byte_size(key) + 20 :: size(32) >> <>
+    << id :: size(32) >> <>
+    << cas :: size(64) >> <>
+    << delta :: size(64) >> <>
+    << initial :: size(64) >> <>
+    << expiry :: size(32) >> <>
+    key
+  end
+
   defrecordp :header, [ :opcode, :key_length, :extra_length, :data_type, :status, :total_body_length, :opaque, :cas ]
 
   def parse_header(<<
@@ -344,6 +357,11 @@ defmodule Memcache.Protocol do
     { :ok, value }
   end
 
+  def parse_body(header(status: 0x0000, opcode: op(:DECREMENTQ), opaque: opaque), rest) do
+    << value :: size(64) >> = rest
+    { opaque, { :ok, value }}
+  end
+
   def parse_body(header(status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0), _rest) do
     { :ok, :done }
   end
@@ -398,6 +416,10 @@ defmodule Memcache.Protocol do
   end
 
   def quiet_response(:INCREMENTQ) do
+    { :ok }
+  end
+
+  def quiet_response(:DECREMENTQ) do
     { :ok }
   end
 end
