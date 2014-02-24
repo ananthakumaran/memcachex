@@ -149,7 +149,7 @@ defmodule MemcacheTest do
     end)
   end
 
-  test "misc command" do
+  test "misc commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
     { :ok, _stat } = Connection.execute(pid, :STAT, [])
     { :ok, _stat } = Connection.execute(pid, :STAT, ["items"])
