@@ -105,11 +105,11 @@ defmodule Memcache.Connection do
     end
   end
 
-  def recv_response_quiet([], s, results, _buffer) do
+  defp recv_response_quiet([], s, results, _buffer) do
     { :reply, { :ok, Enum.reverse(tl(results)) }, s }
   end
 
-  def recv_response_quiet(commands, s, results, buffer) when byte_size(buffer) >= 24 do
+  defp recv_response_quiet(commands, s, results, buffer) when byte_size(buffer) >= 24 do
     { header_raw, rest } = cut(buffer, 24)
     header = Protocol.parse_header(header_raw)
     body_size = Protocol.total_body_size(header)
@@ -127,25 +127,26 @@ defmodule Memcache.Connection do
     end
   end
 
-  def recv_response_quiet(commands, s, results, buffer) do
+  defp recv_response_quiet(commands, s, results, buffer) do
     case read_more_if_needed(s, buffer, 24) do
       { :ok, buffer } -> recv_response_quiet(commands, s, results, buffer)
       err -> err
     end
   end
 
-  def match_response([ { i, _command, _args } | rest ], results, { i, response }) do
+  defp match_response([ { i, _command, _args } | rest ], results, { i, response }) do
     { rest, [response | results] }
   end
 
-  def match_response([ { _i , command, _args } | rest ], results, _response_with_index) do
+  defp match_response([ { _i , command, _args } | rest ], results, _response_with_index) do
     match_response(rest, [Protocol.quiet_response(command) | results], _response_with_index)
   end
 
-  def read_more_if_needed(_sock, buffer, min_required) when byte_size(buffer) >= min_required do
+  defp read_more_if_needed(_sock, buffer, min_required) when byte_size(buffer) >= min_required do
     { :ok, buffer }
   end
-  def read_more_if_needed(state(sock: sock) = s, buffer, min_required) do
+
+  defp read_more_if_needed(state(sock: sock) = s, buffer, min_required) do
     case :gen_tcp.recv(sock, 0) do
       { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
       { :error, reason } -> { :stop, :normal, reason, s }
