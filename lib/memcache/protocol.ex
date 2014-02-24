@@ -391,35 +391,13 @@ defmodule Memcache.Protocol do
   defparse_error(0x0081, "Unknown command")
   defparse_error(0x0082, "Out of memory")
 
-  def quiet_response(:GETQ) do
-    { :ok, "Key not found" }
-  end
+  def quiet_response(:GETQ), do: { :ok, "Key not found" }
+  def quiet_response(:GETKQ), do: { :ok, "Key not found" }
+  def quiet_response(:SETQ), do: { :ok }
+  def quiet_response(:ADDQ), do: { :ok }
+  def quiet_response(:DELETEQ), do: { :ok }
+  def quiet_response(:REPLACEQ), do: { :ok }
+  def quiet_response(:INCREMENTQ), do: { :ok }
+  def quiet_response(:DECREMENTQ), do: { :ok }
 
-  def quiet_response(:GETKQ) do
-    { :ok, "Key not found" }
-  end
-
-  def quiet_response(:SETQ) do
-    { :ok }
-  end
-
-  def quiet_response(:ADDQ) do
-    { :ok }
-  end
-
-  def quiet_response(:DELETEQ) do
-    { :ok }
-  end
-
-  def quiet_response(:REPLACEQ) do
-    { :ok }
-  end
-
-  def quiet_response(:INCREMENTQ) do
-    { :ok }
-  end
-
-  def quiet_response(:DECREMENTQ) do
-    { :ok }
-  end
 end
