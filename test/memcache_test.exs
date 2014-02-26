@@ -130,7 +130,6 @@ defmodule MemcacheTest do
                        { :ok }]}},
 
                { [{:DECREMENTQ, ["count", 1, 5]},
-                  {:GETQ, ["count"]},
                   {:DECREMENTQ, ["count", 1, 5]},
                   {:GETQ, ["count"]},
                   {:DECREMENTQ, ["count", 5]},
@@ -140,7 +139,6 @@ defmodule MemcacheTest do
                   {:DECREMENTQ, ["hello", 1]},
                   {:DELETEQ, ["hello"]},],
                { :ok, [{ :ok },
-                       { :ok, "5" },
                        { :ok },
                        { :ok, "4" },
                        { :ok },
