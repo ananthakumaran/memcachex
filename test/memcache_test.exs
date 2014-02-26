@@ -111,7 +111,6 @@ defmodule MemcacheTest do
                        { :error, "Key not found" }] }},
 
                { [{:INCREMENTQ, ["count", 1, 5]},
-                  {:GETQ, ["count"]},
                   {:INCREMENTQ, ["count", 1, 5]},
                   {:GETQ, ["count"]},
                   {:INCREMENTQ, ["count", 5]},
@@ -121,7 +120,6 @@ defmodule MemcacheTest do
                   {:INCREMENTQ, ["hello", 1]},
                   {:DELETEQ, ["hello"]},],
                { :ok, [{ :ok },
-                       { :ok, "5" },
                        { :ok },
                        { :ok, "6" },
                        { :ok },
