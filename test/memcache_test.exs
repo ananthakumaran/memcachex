@@ -196,6 +196,6 @@ defmodule MemcacheTest do
     { :ok, _stat } = Connection.execute(pid, :STAT, ["slabs"])
     { :ok, _stat } = Connection.execute(pid, :STAT, ["settings"])
     { :ok, version } = Connection.execute(pid, :VERSION, [])
-    assert  version =~ %r/\d+\.\d+\.\d+/
+    assert  version =~ ~r/\d+\.\d+\.\d+/
   end
 end
