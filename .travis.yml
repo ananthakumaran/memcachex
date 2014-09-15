@@ -1,13 +1,14 @@
 language: erlang
 otp_release:
-  - R16B02
+  - 17.0
 services: memcached
 before_install:
-  - git clone https://github.com/elixir-lang/elixir
-  - cd elixir && make && cd ..
+  - wget http://s3.hex.pm/builds/elixir/1.0.0.zip
+  - unzip -d elixir 1.0.0.zip
 before_script:
   - export PATH=`pwd`/elixir/bin:$PATH
-  - MIX_ENV=test mix do deps.get
+  - mix local.hex --force
+  - MIX_ENV=test mix deps.get
 script:
   - mix test
 

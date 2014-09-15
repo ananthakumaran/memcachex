@@ -2,6 +2,7 @@
 
 defmodule Memcache.Protocol do
   import Memcache.BinaryUtils
+  alias Memcache.BinaryUtils.Header
 
   def to_binary(:QUIT) do
     bcat([ request, opb(:QUIT), << 0x00 :: size(16) >>,
@@ -316,7 +317,6 @@ defmodule Memcache.Protocol do
     key
   end
 
-  defrecordp :header, [ :opcode, :key_length, :extra_length, :data_type, :status, :total_body_length, :opaque, :cas ]
 
   def parse_header(<<
                    0x81 :: size(8),
@@ -329,68 +329,68 @@ defmodule Memcache.Protocol do
                    opaque :: size(32),
                    cas :: size(64)
                    >>) do
-    header(opcode: opcode, key_length: key_length, extra_length: extra_length, data_type: data_type, status: status, total_body_length: total_body_length, opaque: opaque, cas: cas)
+    %Header{ opcode: opcode, key_length: key_length, extra_length: extra_length, data_type: data_type, status: status, total_body_length: total_body_length, opaque: opaque, cas: cas }
   end
 
-  def total_body_size(header(total_body_length: size)) do
+  def total_body_size(%Header{total_body_length: size}) do
     size
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GET), extra_length: extra_length, total_body_length: total_body_length), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GET), extra_length: extra_length, total_body_length: total_body_length }, rest) do
     value_size = (total_body_length - extra_length)
-    << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
+    << _extra :: binary-size(extra_length),  value :: binary-size(value_size) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque }, rest) do
     value_size = (total_body_length - extra_length)
-    << _extra :: bsize(extra_length),  value :: bsize(value_size) >> = rest
+    << _extra :: binary-size(extra_length),  value :: binary-size(value_size) >> = rest
     { opaque, { :ok, value } }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length }, rest) do
     value_size = (total_body_length - extra_length - key_length)
-    << _extra :: bsize(extra_length), key :: bsize(key_length), value :: bsize(value_size) >> = rest
+    << _extra :: binary-size(extra_length), key :: binary-size(key_length), value :: binary-size(value_size) >> = rest
     { :ok, key, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:GETKQ), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length, opaque: opaque), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GETKQ), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length, opaque: opaque }, rest) do
     value_size = (total_body_length - extra_length - key_length)
-    << _extra :: bsize(extra_length), key :: bsize(key_length), value :: bsize(value_size) >> = rest
+    << _extra :: binary-size(extra_length), key :: binary-size(key_length), value :: binary-size(value_size) >> = rest
     { opaque, { :ok, key, value }}
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:VERSION)), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:VERSION) }, rest) do
     { :ok, rest }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:INCREMENT)), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENT) }, rest) do
     << value :: size(64) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:INCREMENTQ), opaque: opaque), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENTQ), opaque: opaque }, rest) do
     << value :: size(64) >> = rest
     { opaque, { :ok, value }}
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:DECREMENT)), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:DECREMENT) }, rest) do
     << value :: size(64) >> = rest
     { :ok, value }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:DECREMENTQ), opaque: opaque), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:DECREMENTQ), opaque: opaque }, rest) do
     << value :: size(64) >> = rest
     { opaque, { :ok, value }}
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0), _rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0 }, _rest) do
     { :ok, :done }
   end
 
-  def parse_body(header(status: 0x0000, opcode: op(:STAT), key_length: key_length, total_body_length: total_body_length), rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: key_length, total_body_length: total_body_length }, rest) do
     value_size = (total_body_length - key_length)
-    << key :: bsize(key_length),  value :: bsize(value_size) >> = rest
+    << key :: binary-size(key_length),  value :: binary-size(value_size) >> = rest
     { :ok, key, value }
   end
 

@@ -1,8 +1,10 @@
 defmodule Memcache.Connection do
-  use GenServer.Behaviour
+  use GenServer
   alias Memcache.Protocol
 
-  defrecordp :state, [ :opts, :sock ]
+  defmodule State do
+    defstruct opts: nil, sock: nil
+  end
 
   @spec start_link(Keyword.t) :: { :ok, pid } | { :error, term }
   def start_link(opts) do
@@ -26,19 +28,19 @@ defmodule Memcache.Connection do
   end
 
   def init([]) do
-    { :ok, state() }
+    { :ok, %State{} }
   end
 
   def handle_call({ :connect, opts }, _from, s) do
     sock_opts = [ { :active, false }, { :packet, :raw }, :binary ]
 
     case :gen_tcp.connect(opts[:hostname], opts[:port], sock_opts) do
-      { :ok, sock } -> { :reply, :ok, state(sock: sock, opts: opts) }
+      { :ok, sock } -> { :reply, :ok, %State{ sock: sock, opts: opts } }
       { :error, reason } -> { :stop, :normal, reason, s }
     end
   end
 
-  def handle_call({ :execute, command, args }, _from, state(sock: sock) = s) do
+  def handle_call({ :execute, command, args }, _from, %State{ sock: sock } = s) do
     packet = apply(Protocol, :to_binary, [command | args])
     case :gen_tcp.send(sock, packet) do
       :ok -> recv_response(command, s)
@@ -46,7 +48,7 @@ defmodule Memcache.Connection do
     end
   end
 
-  def handle_call({ :execute_quiet, commands }, _from, state(sock: sock) = s) do
+  def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
     { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
       { packet <> apply(Protocol, :to_binary, [command | [i | args]]), [{ i, command, args } | commands], i + 1 }
     end)
@@ -57,7 +59,7 @@ defmodule Memcache.Connection do
     end
   end
 
-  def terminate(_reason, state(sock: sock)) do
+  def terminate(_reason, %State{ sock: sock }) do
     if sock do
       :gen_tcp.close(sock)
     end
@@ -73,7 +75,7 @@ defmodule Memcache.Connection do
     recv_header(s)
   end
 
-  defp recv_header(state(sock: sock) = s) do
+  defp recv_header(%State{ sock: sock } = s) do
     case :gen_tcp.recv(sock, 24) do
       { :ok, raw_header } ->
         header = Protocol.parse_header(raw_header)
@@ -82,7 +84,7 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp recv_body(header, state(sock: sock) = s) do
+  defp recv_body(header, %State{ sock: sock } = s) do
     body_size = Protocol.total_body_size(header)
     if body_size > 0 do
       case :gen_tcp.recv(sock, body_size) do
@@ -146,7 +148,7 @@ defmodule Memcache.Connection do
     { :ok, buffer }
   end
 
-  defp read_more_if_needed(state(sock: sock) = s, buffer, min_required) do
+  defp read_more_if_needed(%State{ sock: sock } = s, buffer, min_required) do
     case :gen_tcp.recv(sock, 0) do
       { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
       { :error, reason } -> { :stop, :normal, reason, s }
@@ -156,7 +158,7 @@ defmodule Memcache.Connection do
   defp with_defaults(opts) do
     opts
     |> Keyword.put_new(:port, 11211)
-    |> Keyword.update!(:hostname, &if is_binary(&1), do: String.to_char_list!(&1), else: &1)
+    |> Keyword.update!(:hostname, &if is_binary(&1), do: String.to_char_list(&1), else: &1)
   end
 
   defp cut(bin, at) do

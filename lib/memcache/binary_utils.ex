@@ -41,12 +41,16 @@ defmodule Memcache.BinaryUtils do
     end
   end
 
+  defmodule Header do
+    defstruct opcode: nil, key_length: nil, extra_length: nil, data_type: nil, status: nil, total_body_length: nil, opaque: nil, cas: nil
+  end
+
   defmacro defparse_empty(name) do
     quote do
-      def parse_body(header(status: 0x0000, opcode: op(unquote(name)), opaque: 0x00), :empty) do
+      def parse_body(%Header{ status: 0x0000, opcode: op(unquote(name)), opaque: 0x00 }, :empty) do
         { :ok }
       end
-      def parse_body(header(status: 0x0000, opcode: op(unquote(name)), opaque: opaque), :empty) do
+      def parse_body(%Header{ status: 0x0000, opcode: op(unquote(name)), opaque: opaque }, :empty) do
         { opaque, { :ok }}
       end
     end
@@ -54,10 +58,10 @@ defmodule Memcache.BinaryUtils do
 
   defmacro defparse_error(code, error) do
     quote do
-      def parse_body(header(status: unquote(code), opaque: 0x00), _rest) do
+      def parse_body(%Header{ status: unquote(code), opaque: 0x00 }, _rest) do
         { :error, unquote(error) }
       end
-      def parse_body(header(status: unquote(code), opaque: opaque), _rest) do
+      def parse_body(%Header{ status: unquote(code), opaque: opaque }, _rest) do
         { opaque, { :error, unquote(error) }}
       end
     end
@@ -67,12 +71,6 @@ defmodule Memcache.BinaryUtils do
     { parts, _ } = Code.eval_quoted(binaries, [], __CALLER__)
     quote do
       unquote(Enum.reduce(parts, <<>>, fn (x, a) -> a <> x end))
-    end
-  end
-
-  defmacro bsize(bytesize) do
-    quote do
-      [ size(unquote(bytesize)), binary ]
     end
   end
 

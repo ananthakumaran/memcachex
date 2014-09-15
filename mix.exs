@@ -4,7 +4,7 @@ defmodule Memcache.Mixfile do
   def project do
     [ app: :memcache,
       version: "0.0.1",
-      elixir: "~> 0.12.4",
+      elixir: "~> 1.0.0",
       deps: deps(Mix.env) ]
   end
 
