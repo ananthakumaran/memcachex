@@ -140,8 +140,8 @@ defmodule Memcache.Connection do
     { rest, [response | results] }
   end
 
-  defp match_response([ { _i , command, _args } | rest ], results, _response_with_index) do
-    match_response(rest, [Protocol.quiet_response(command) | results], _response_with_index)
+  defp match_response([ { _i , command, _args } | rest ], results, response_with_index) do
+    match_response(rest, [Protocol.quiet_response(command) | results], response_with_index)
   end
 
   defp read_more_if_needed(_sock, buffer, min_required) when byte_size(buffer) >= min_required do
@@ -158,7 +158,7 @@ defmodule Memcache.Connection do
   defp with_defaults(opts) do
     opts
     |> Keyword.put_new(:port, 11211)
-    |> Keyword.update!(:hostname, &if is_binary(&1), do: String.to_char_list(&1), else: &1)
+    |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
   defp cut(bin, at) do

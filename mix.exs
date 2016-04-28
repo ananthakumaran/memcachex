@@ -4,7 +4,7 @@ defmodule Memcache.Mixfile do
   def project do
     [ app: :memcache,
       version: "0.0.1",
-      elixir: "~> 1.0.0",
+      elixir: ">= 1.0.0",
       deps: deps(Mix.env) ]
   end
 
@@ -13,7 +13,7 @@ defmodule Memcache.Mixfile do
   end
 
   defp deps(:dev) do
-    [ { :benchmark, "~> 0.0.1", github: "ananthakumaran/elixir-benchmark" } ] ++ deps()
+    [{:benchfella, "~> 0.3.0"}] ++ deps()
   end
 
   defp deps(_), do: deps()
