@@ -9,9 +9,9 @@ defmodule Memcache.Connection do
   end
 
   @spec start_link(Keyword.t) :: { :ok, pid } | { :error, term }
-  def start_link(opts) do
+  def start_link(opts \\ [], other_opts \\ []) do
     opts = with_defaults(opts)
-    Connection.start_link(__MODULE__, opts, [])
+    Connection.start_link(__MODULE__, opts, other_opts)
   end
 
   @default_opts [
