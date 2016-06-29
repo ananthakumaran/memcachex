@@ -5,13 +5,25 @@ defmodule Memcache.Connection do
   alias Memcache.Utils
 
   defmodule State do
-    defstruct opts: nil, sock: nil
+    defstruct opts: nil, sock: nil, backoff_current: nil
   end
 
   @spec start_link(Keyword.t) :: { :ok, pid } | { :error, term }
   def start_link(opts) do
     opts = with_defaults(opts)
     Connection.start_link(__MODULE__, opts, [])
+  end
+
+  @default_opts [
+    backoff_initial: 500,
+    backoff_max: 30_000,
+    host: 'localhost',
+    port: 11211
+  ]
+
+  defp with_defaults(opts) do
+    Keyword.merge(@default_opts, opts)
+    |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
   def execute(pid, command, args) do
@@ -34,13 +46,18 @@ defmodule Memcache.Connection do
     sock_opts = [ { :active, false }, { :packet, :raw }, :binary ]
     case :gen_tcp.connect(opts[:hostname], opts[:port], sock_opts) do
       { :ok, sock } ->
-        if info == :backoff do
-          Logger.info(["Reconnected to Memcache"])
+        if info == :backoff || info == :reconnect do
+          Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
         end
-        { :ok, %State{ sock: sock, opts: opts } }
+        { :ok, %{s | sock: sock, backoff_current: nil } }
       { :error, reason } ->
-        Logger.error(["Failed to connect to Memcache: ", Utils.format_error(reason)])
-        { :backoff, 1000, s }
+        Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
+        backoff = if !s.backoff_current do
+          s.opts[:backoff_initial]
+        else
+          Utils.next_backoff(s.backoff_current, s.opts[:backoff_max])
+        end
+        { :backoff, backoff, %{s | backoff_current: backoff} }
     end
   end
 
@@ -48,10 +65,10 @@ defmodule Memcache.Connection do
     {:stop, :normal, state}
   end
 
-  def disconnect({:error, reason}, %State{ sock: sock } = s) do
-    Logger.error(["Disconnected from Memcache: ", Utils.format_error(reason)])
+  def disconnect({:error, reason}, %State{ sock: sock, opts: opts } = s) do
+    Logger.error(["Disconnected from Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
     :ok = :gen_tcp.close(sock)
-    {:connect, :reconnect, %{s | sock: nil}}
+    {:connect, :reconnect, %{s | sock: nil, backoff_current: nil}}
   end
 
   def handle_call({ :execute, _command, _args }, _from, %State{ sock: nil } = s) do
@@ -175,12 +192,6 @@ defmodule Memcache.Connection do
       { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
       { :error, _reason } = error -> { :disconnect, error, error, s }
     end
-  end
-
-  defp with_defaults(opts) do
-    opts
-    |> Keyword.put_new(:port, 11211)
-    |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
   defp cut(bin, at) do

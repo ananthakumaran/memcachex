@@ -13,4 +13,18 @@ defmodule Memcache.Utils do
       message -> List.to_string(message)
     end
   end
+
+  def format_host(opts) do
+    "#{opts[:host]}:#{opts[:port]}"
+  end
+
+  def next_backoff(current, backoff_max) do
+    next = round(current * 1.5)
+
+    if backoff_max == :infinity do
+      next
+    else
+      min(next, backoff_max)
+    end
+  end
 end

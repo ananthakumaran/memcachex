@@ -13,7 +13,7 @@ defmodule MemcacheTest do
   end
 end
 
-:timer.send_interval(100, {:execute})
+:timer.send_interval(1000, {:execute})
 
 { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
 MemcacheTest.loop(pid)
