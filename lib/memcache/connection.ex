@@ -1,6 +1,8 @@
 defmodule Memcache.Connection do
-  use GenServer
+  require Logger
+  use Connection
   alias Memcache.Protocol
+  alias Memcache.Utils
 
   defmodule State do
     defstruct opts: nil, sock: nil
@@ -8,44 +10,64 @@ defmodule Memcache.Connection do
 
   @spec start_link(Keyword.t) :: { :ok, pid } | { :error, term }
   def start_link(opts) do
-    case :gen_server.start_link(__MODULE__, [], []) do
-      { :ok, pid } ->
-        opts = with_defaults(opts)
-        case :gen_server.call(pid, { :connect, opts }) do
-          :ok -> { :ok, pid }
-          err -> { :error, err }
-        end
-      err -> err
-    end
+    opts = with_defaults(opts)
+    Connection.start_link(__MODULE__, opts, [])
   end
 
   def execute(pid, command, args) do
-    :gen_server.call(pid, { :execute, command, args })
+    Connection.call(pid, { :execute, command, args })
   end
 
   def execute_quiet(pid, commands) do
-    :gen_server.call(pid, { :execute_quiet, commands })
+    Connection.call(pid, { :execute_quiet, commands })
   end
 
-  def init([]) do
-    { :ok, %State{} }
+  def close(pid) do
+    Connection.call(pid, { :close })
   end
 
-  def handle_call({ :connect, opts }, _from, s) do
+  def init(opts) do
+    { :connect, :init, %State{opts: opts} }
+  end
+
+  def connect(info, %State{opts: opts} = s) do
     sock_opts = [ { :active, false }, { :packet, :raw }, :binary ]
-
     case :gen_tcp.connect(opts[:hostname], opts[:port], sock_opts) do
-      { :ok, sock } -> { :reply, :ok, %State{ sock: sock, opts: opts } }
-      { :error, reason } -> { :stop, :normal, reason, s }
+      { :ok, sock } ->
+        if info == :backoff do
+          Logger.info(["Reconnected to Memcache"])
+        end
+        { :ok, %State{ sock: sock, opts: opts } }
+      { :error, reason } ->
+        Logger.error(["Failed to connect to Memcache: ", Utils.format_error(reason)])
+        { :backoff, 1000, s }
     end
+  end
+
+  def disconnect(:close, state) do
+    {:stop, :normal, state}
+  end
+
+  def disconnect({:error, reason}, %State{ sock: sock } = s) do
+    Logger.error(["Disconnected from Memcache: ", Utils.format_error(reason)])
+    :ok = :gen_tcp.close(sock)
+    {:connect, :reconnect, %{s | sock: nil}}
+  end
+
+  def handle_call({ :execute, _command, _args }, _from, %State{ sock: nil } = s) do
+    {:reply, {:error, :closed}, s}
   end
 
   def handle_call({ :execute, command, args }, _from, %State{ sock: sock } = s) do
     packet = apply(Protocol, :to_binary, [command | args])
     case :gen_tcp.send(sock, packet) do
       :ok -> recv_response(command, s)
-      { :error, reason } -> { :stop, :normal, reason, s }
+      { :error, _reason } = error -> { :disconnect, error, error, s }
     end
+  end
+
+  def handle_call({ :execute_quiet, _commands }, _from, %State{ sock: nil } = s) do
+    {:reply, {:error, :closed}, s}
   end
 
   def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
@@ -55,7 +77,7 @@ defmodule Memcache.Connection do
     packet = packet <> Protocol.to_binary(:NOOP, i)
     case :gen_tcp.send(sock, packet) do
       :ok -> recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>)
-      { :error, reason } -> { :stop, :normal, reason, s }
+      { :error, _reason } = error -> { :disconnect, error, error, s }
     end
   end
 
@@ -80,7 +102,7 @@ defmodule Memcache.Connection do
       { :ok, raw_header } ->
         header = Protocol.parse_header(raw_header)
         recv_body(header, s)
-      { :error, reason } -> { :stop, :normal, reason, s }
+      { :error, _reason } = error -> { :disconnect, error, error, s }
     end
   end
 
@@ -91,7 +113,7 @@ defmodule Memcache.Connection do
         { :ok, body } ->
           response = Protocol.parse_body(header, body)
           { :reply, response, s }
-        { :error, reason } -> { :stop, :normal, reason, s }
+        { :error, _reason } = error -> { :disconnect, error, error, s }
       end
     else
       response = Protocol.parse_body(header, :empty)
@@ -151,7 +173,7 @@ defmodule Memcache.Connection do
   defp read_more_if_needed(%State{ sock: sock } = s, buffer, min_required) do
     case :gen_tcp.recv(sock, 0) do
       { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
-      { :error, reason } -> { :stop, :normal, reason, s }
+      { :error, _reason } = error -> { :disconnect, error, error, s }
     end
   end
 

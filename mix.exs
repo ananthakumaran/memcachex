@@ -9,7 +9,7 @@ defmodule Memcache.Mixfile do
   end
 
   def application do
-    []
+    [applications: [:logger, :connection]]
   end
 
   defp deps(:dev) do
@@ -19,6 +19,6 @@ defmodule Memcache.Mixfile do
   defp deps(_), do: deps()
 
   defp deps do
-    []
+    [{:connection, "~> 1.0.3"}]
   end
 end
