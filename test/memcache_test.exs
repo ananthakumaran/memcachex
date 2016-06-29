@@ -199,7 +199,7 @@ defmodule MemcacheTest do
     assert  version =~ ~r/\d+\.\d+\.\d+/
   end
 
-  test "allows named process" do
+  test "named process" do
     { :ok, _pid } = Connection.start_link([ hostname: "localhost" ], [name: :memcachex])
     { :ok } = Connection.execute(:memcachex, :SET, ["hello", "world"])
     { :ok, "world" } = Connection.execute(:memcachex, :GET, ["hello"])
