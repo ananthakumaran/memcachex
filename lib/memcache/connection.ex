@@ -62,8 +62,10 @@ defmodule Memcache.Connection do
     end
   end
 
-  def disconnect(:close, state) do
-    {:stop, :normal, state}
+  def disconnect({ :close, from }, %State{ sock: sock } = state) do
+    :ok = :gen_tcp.close(sock)
+    Connection.reply(from, :ok)
+    {:stop, :normal, %{ state | sock: nil }}
   end
 
   def disconnect({:error, reason}, %State{ sock: sock, opts: opts } = s) do
@@ -103,6 +105,10 @@ defmodule Memcache.Connection do
              end
     :inet.setopts(sock, [active: :once])
     result
+  end
+
+  def handle_call({ :close }, from, state) do
+    { :disconnect, { :close, from }, state }
   end
 
   def handle_info({:tcp_closed, socket} = msg, state) do

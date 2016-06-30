@@ -54,13 +54,14 @@ defmodule MemcacheTest do
              {:FLUSH, [0xFFFF], { :ok }},
              {:GET, ["name"], { :ok, "ananth" }},
              {:FLUSH, [], { :ok }},
-             {:GET, ["name"], { :error, "Key not found" }},
-             {:QUIT, [], { :ok }}
+             {:GET, ["name"], { :error, "Key not found" }}
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
       assert(Connection.execute(pid, command, args) == response)
     end)
+
+    :ok = Connection.close(pid)
   end
 
   test "quiet commands" do
@@ -186,6 +187,8 @@ defmodule MemcacheTest do
     Enum.each(cases, fn ({ commands, response }) ->
       assert(Connection.execute_quiet(pid, commands) == response)
     end)
+
+    :ok = Connection.close(pid)
   end
 
   test "misc commands" do
@@ -196,11 +199,13 @@ defmodule MemcacheTest do
     { :ok, _stat } = Connection.execute(pid, :STAT, ["settings"])
     { :ok, version } = Connection.execute(pid, :VERSION, [])
     assert  version =~ ~r/\d+\.\d+\.\d+/
+    :ok = Connection.close(pid)
   end
 
   test "named process" do
-    { :ok, _pid } = Connection.start_link([ hostname: "localhost" ], [name: :memcachex])
+    { :ok, pid } = Connection.start_link([ hostname: "localhost" ], [name: :memcachex])
     { :ok } = Connection.execute(:memcachex, :SET, ["hello", "world"])
     { :ok, "world" } = Connection.execute(:memcachex, :GET, ["hello"])
+    :ok = Connection.close(pid)
   end
 end
