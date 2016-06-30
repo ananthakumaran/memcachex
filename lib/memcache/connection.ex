@@ -43,12 +43,13 @@ defmodule Memcache.Connection do
   end
 
   def connect(info, %State{opts: opts} = s) do
-    sock_opts = [ { :active, false }, { :packet, :raw }, :binary ]
+    sock_opts = [:binary, active: false, packet: :raw]
     case :gen_tcp.connect(opts[:hostname], opts[:port], sock_opts) do
       { :ok, sock } ->
         if info == :backoff || info == :reconnect do
           Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
         end
+        :inet.setopts(sock, [active: :once])
         { :ok, %{s | sock: sock, backoff_current: nil } }
       { :error, reason } ->
         Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
@@ -76,11 +77,14 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({ :execute, command, args }, _from, %State{ sock: sock } = s) do
+    :inet.setopts(sock, [active: false])
     packet = apply(Protocol, :to_binary, [command | args])
-    case :gen_tcp.send(sock, packet) do
-      :ok -> recv_response(command, s)
-      { :error, _reason } = error -> { :disconnect, error, error, s }
-    end
+    result = case :gen_tcp.send(sock, packet) do
+               :ok -> recv_response(command, s)
+               { :error, _reason } = error -> { :disconnect, error, error, s }
+             end
+    :inet.setopts(sock, [active: :once])
+    result
   end
 
   def handle_call({ :execute_quiet, _commands }, _from, %State{ sock: nil } = s) do
@@ -88,14 +92,31 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
+    :inet.setopts(sock, [active: false])
     { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
       { packet <> apply(Protocol, :to_binary, [command | [i | args]]), [{ i, command, args } | commands], i + 1 }
     end)
     packet = packet <> Protocol.to_binary(:NOOP, i)
-    case :gen_tcp.send(sock, packet) do
-      :ok -> recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>)
-      { :error, _reason } = error -> { :disconnect, error, error, s }
-    end
+    result = case :gen_tcp.send(sock, packet) do
+               :ok -> recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>)
+               { :error, _reason } = error -> { :disconnect, error, error, s }
+             end
+    :inet.setopts(sock, [active: :once])
+    result
+  end
+
+  def handle_info({:tcp_closed, socket} = msg, state) do
+    error = {:error, :tcp_closed}
+    { :disconnect, error, state }
+  end
+
+  def handle_info({:tcp_error, socket, reason} = msg, state) do
+    error = {:error, reason}
+    { :disconnect, error, state }
+  end
+
+  def handle_info(m, state) do
+    {:noreply, state}
   end
 
   def terminate(_reason, %State{ sock: sock }) do

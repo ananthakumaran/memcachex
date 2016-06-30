@@ -55,8 +55,7 @@ defmodule MemcacheTest do
              {:GET, ["name"], { :ok, "ananth" }},
              {:FLUSH, [], { :ok }},
              {:GET, ["name"], { :error, "Key not found" }},
-             {:QUIT, [], { :ok }},
-             {:DELETE, ["count"], { :error, :closed }},
+             {:QUIT, [], { :ok }}
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
