@@ -17,7 +17,7 @@ defmodule Memcache.Connection do
   @default_opts [
     backoff_initial: 500,
     backoff_max: 30_000,
-    host: 'localhost',
+    hostname: 'localhost',
     port: 11211
   ]
 
@@ -64,7 +64,7 @@ defmodule Memcache.Connection do
 
   def disconnect({ :close, from }, %State{ sock: sock } = state) do
     :ok = :gen_tcp.close(sock)
-    Connection.reply(from, :ok)
+    Connection.reply(from, { :ok })
     {:stop, :normal, %{ state | sock: nil }}
   end
 
@@ -111,17 +111,17 @@ defmodule Memcache.Connection do
     { :disconnect, { :close, from }, state }
   end
 
-  def handle_info({:tcp_closed, socket} = msg, state) do
+  def handle_info({:tcp_closed, _socket}, state) do
     error = {:error, :tcp_closed}
     { :disconnect, error, state }
   end
 
-  def handle_info({:tcp_error, socket, reason} = msg, state) do
+  def handle_info({:tcp_error, _socket, reason}, state) do
     error = {:error, reason}
     { :disconnect, error, state }
   end
 
-  def handle_info(m, state) do
+  def handle_info(_msg, state) do
     {:noreply, state}
   end
 
