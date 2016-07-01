@@ -1,7 +1,9 @@
 defmodule Memcache do
   alias Memcache.Connection
 
-  defdelegate start_link(connection_opts \\ [], process_opts \\ []), to: Connection
+  defdelegate start_link(), to: Connection
+  defdelegate start_link(connection_opts), to: Connection
+  defdelegate start_link(connection_opts, process_opts), to: Connection
 
   defdelegate stop(connection), to: Connection, as: :close
 
