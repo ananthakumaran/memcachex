@@ -17,6 +17,14 @@ defmodule Memcache do
     execute(connection, :SET, [key, value])
   end
 
+  def add(connection, key, value) do
+    execute(connection, :ADD, [key, value])
+  end
+
+  def replace(connection, key, value) do
+    execute(connection, :REPLACE, [key, value])
+  end
+
   def delete(connection, key) do
     execute(connection, :DELETE, [key])
   end
