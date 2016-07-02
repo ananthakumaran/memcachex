@@ -1,4 +1,4 @@
-# https://code.google.com/p/memcached/wiki/MemcacheBinaryProtocol
+# https://github.com/memcached/old-wiki/blob/master/MemcacheBinaryProtocol.wiki
 
 defmodule Memcache.Protocol do
   import Memcache.BinaryUtils
