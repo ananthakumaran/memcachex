@@ -25,6 +25,26 @@ defmodule Memcache do
     execute(connection, :FLUSH, [])
   end
 
+  def append(connection, key, value) do
+    execute(connection, :APPEND, [key, value])
+  end
+
+  def prepend(connection, key, value) do
+    execute(connection, :PREPEND, [key, value])
+  end
+
+  def incr(connection, key, opts \\ []) do
+    defaults = [by: 1, default: 0]
+    opts = Keyword.merge(defaults, opts)
+    execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default)])
+  end
+
+  def decr(connection, key, opts \\ []) do
+    defaults = [by: 1, default: 0]
+    opts = Keyword.merge(defaults, opts)
+    execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default)])
+  end
+
   def stat(connection) do
     execute(connection, :STAT, [])
   end
