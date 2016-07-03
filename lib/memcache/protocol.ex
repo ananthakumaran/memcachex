@@ -212,7 +212,7 @@ defmodule Memcache.Protocol do
     key
   end
 
-  def to_binary(:SET, key, value, cas, flag, expiry) do
+  def to_binary(:SET, key, value, cas, expiry, flag) do
     bcat([ request, opb(:SET)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
@@ -225,7 +225,7 @@ defmodule Memcache.Protocol do
     value
   end
 
-  def to_binary(:ADD, key, value, cas, flag, expiry) do
+  def to_binary(:ADD, key, value, expiry, cas, flag) do
     bcat([ request, opb(:ADD)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
@@ -238,7 +238,7 @@ defmodule Memcache.Protocol do
     value
   end
 
-  def to_binary(:REPLACE, key, value, cas, flag, expiry) do
+  def to_binary(:REPLACE, key, value, cas, expiry, flag) do
     bcat([ request, opb(:REPLACE)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>

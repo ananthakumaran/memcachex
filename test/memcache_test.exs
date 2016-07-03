@@ -89,5 +89,35 @@ defmodule MemcacheTest do
     Task.await(task_c)
 
     assert { :ok, "300" } == Memcache.get(pid, "counter")
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "expire" do
+    assert { :ok, pid } = Memcache.start_link()
+    assert { :ok } == Memcache.flush(pid)
+
+    assert { :ok } == Memcache.set(pid, "set", "world", ttl: 1)
+    assert { :ok } == Memcache.set(pid, "replace", "world")
+    assert { :ok } == Memcache.replace(pid, "replace", "world", ttl: 1)
+    assert { :ok } == Memcache.add(pid, "add", "world", ttl: 1)
+    assert { :ok, 5 } == Memcache.incr(pid, "incr", default: 5, ttl: 1)
+    assert { :ok, 5 } == Memcache.decr(pid, "decr", default: 5, ttl: 1)
+
+    Process.sleep(2000)
+
+    assert { :error, "Key not found" } == Memcache.get(pid, "set")
+    assert { :error, "Key not found" } == Memcache.get(pid, "replace")
+    assert { :error, "Key not found" } == Memcache.get(pid, "add")
+    assert { :error, "Key not found" } == Memcache.get(pid, "incr")
+    assert { :error, "Key not found" } == Memcache.get(pid, "decr")
+
+    assert { :ok } == Memcache.set(pid, "hello", "world")
+    assert { :ok } == Memcache.flush(pid, ttl: 2)
+    assert { :ok, "world" } == Memcache.get(pid, "hello")
+
+    Process.sleep(3000)
+
+    assert { :error, "Key not found" } == Memcache.get(pid, "hello")
+    assert { :ok } = Memcache.stop(pid)
   end
 end

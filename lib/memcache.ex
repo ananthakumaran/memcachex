@@ -15,11 +15,11 @@ defmodule Memcache do
   end
 
   def set(connection, key, value, opts \\ []) do
-    execute(connection, :SET, [key, value], opts)
+    set_cas(connection, key, value, 0, opts)
   end
 
   def set_cas(connection, key, value, cas, opts \\ []) do
-    execute(connection, :SET, [key, value, cas], opts)
+    execute(connection, :SET, [key, value, cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   @cas_error { :error, "Key exists" }
@@ -41,15 +41,15 @@ defmodule Memcache do
   end
 
   def add(connection, key, value, opts \\ []) do
-    execute(connection, :ADD, [key, value], opts)
+    execute(connection, :ADD, [key, value, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   def replace(connection, key, value, opts \\ []) do
-    execute(connection, :REPLACE, [key, value], opts)
+    replace_cas(connection, key, value, 0, opts)
   end
 
   def replace_cas(connection, key, value, cas, opts \\ []) do
-    execute(connection, :REPLACE, [key, value, cas], opts)
+    execute(connection, :REPLACE, [key, value, cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   def delete(connection, key) do
@@ -60,8 +60,8 @@ defmodule Memcache do
     execute(connection, :DELETE, [key, cas])
   end
 
-  def flush(connection) do
-    execute(connection, :FLUSH, [])
+  def flush(connection, opts \\ []) do
+    execute(connection, :FLUSH, [Keyword.get(opts, :ttl, 0)])
   end
 
   def append(connection, key, value, opts \\ []) do
@@ -87,7 +87,7 @@ defmodule Memcache do
   def incr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
+    execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   def decr(connection, key, opts \\ []) do
@@ -97,7 +97,7 @@ defmodule Memcache do
   def decr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
+    execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   def stat(connection) do
