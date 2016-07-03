@@ -65,7 +65,7 @@ defmodule MemcacheTest do
     assert { :ok, cas } = Memcache.set(pid, "new", "hope", [cas: true])
     assert { :ok } == Memcache.prepend_cas(pid, "new", "new ", cas)
     assert cas_error == Memcache.prepend_cas(pid, "new", "new ", cas)
-    assert { :ok, cas } = Memcache.prepend(pid, "new", "new ", [cas: true])
+    assert { :ok, _cas } = Memcache.prepend(pid, "new", "new ", [cas: true])
     assert { :ok } == Memcache.flush(pid)
 
     assert { :ok } = Memcache.noop(pid)
