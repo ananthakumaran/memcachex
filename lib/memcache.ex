@@ -8,49 +8,78 @@ defmodule Memcache do
   defdelegate stop(connection), to: Connection, as: :close
 
   defdelegate execute(connection, command, args), to: Connection
+  defdelegate execute(connection, command, args, opts), to: Connection
 
-  def get(connection, key) do
-    execute(connection, :GET, [key])
+  def get(connection, key, opts \\ []) do
+    execute(connection, :GET, [key], opts)
   end
 
-  def set(connection, key, value) do
-    execute(connection, :SET, [key, value])
+  def set(connection, key, value, opts \\ []) do
+    execute(connection, :SET, [key, value], opts)
   end
 
-  def add(connection, key, value) do
-    execute(connection, :ADD, [key, value])
+  def set_cas(connection, key, value, cas, opts \\ []) do
+    execute(connection, :SET, [key, value, cas], opts)
   end
 
-  def replace(connection, key, value) do
-    execute(connection, :REPLACE, [key, value])
+  def add(connection, key, value, opts \\ []) do
+    execute(connection, :ADD, [key, value], opts)
+  end
+
+  def replace(connection, key, value, opts \\ []) do
+    execute(connection, :REPLACE, [key, value], opts)
+  end
+
+  def replace_cas(connection, key, value, cas, opts \\ []) do
+    execute(connection, :REPLACE, [key, value, cas], opts)
   end
 
   def delete(connection, key) do
     execute(connection, :DELETE, [key])
   end
 
+  def delete_cas(connection, key, cas) do
+    execute(connection, :DELETE, [key, cas])
+  end
+
   def flush(connection) do
     execute(connection, :FLUSH, [])
   end
 
-  def append(connection, key, value) do
-    execute(connection, :APPEND, [key, value])
+  def append(connection, key, value, opts \\ []) do
+    execute(connection, :APPEND, [key, value], opts)
   end
 
-  def prepend(connection, key, value) do
-    execute(connection, :PREPEND, [key, value])
+  def append_cas(connection, key, value, cas, opts \\ []) do
+    execute(connection, :APPEND, [key, value, cas], opts)
+  end
+
+  def prepend(connection, key, value, opts \\ []) do
+    execute(connection, :PREPEND, [key, value], opts)
+  end
+
+  def prepend_cas(connection, key, value, cas, opts \\ []) do
+    execute(connection, :PREPEND, [key, value, cas], opts)
   end
 
   def incr(connection, key, opts \\ []) do
+    incr_cas(connection, key, 0, opts)
+  end
+
+  def incr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default)])
+    execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
   end
 
   def decr(connection, key, opts \\ []) do
+    decr_cas(connection, key, 0, opts)
+  end
+
+  def decr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default)])
+    execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
   end
 
   def stat(connection) do
