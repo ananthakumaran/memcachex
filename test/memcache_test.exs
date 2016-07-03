@@ -103,7 +103,7 @@ defmodule MemcacheTest do
     assert { :ok, 5 } == Memcache.incr(pid, "incr", default: 5, ttl: 1)
     assert { :ok, 5 } == Memcache.decr(pid, "decr", default: 5, ttl: 1)
 
-    Process.sleep(2000)
+    :timer.sleep(2000)
 
     assert { :error, "Key not found" } == Memcache.get(pid, "set")
     assert { :error, "Key not found" } == Memcache.get(pid, "replace")
@@ -115,7 +115,7 @@ defmodule MemcacheTest do
     assert { :ok } == Memcache.flush(pid, ttl: 2)
     assert { :ok, "world" } == Memcache.get(pid, "hello")
 
-    Process.sleep(3000)
+    :timer.sleep(3000)
 
     assert { :error, "Key not found" } == Memcache.get(pid, "hello")
     assert { :ok } = Memcache.stop(pid)
