@@ -71,15 +71,6 @@ defmodule Memcache.Protocol do
     key
   end
 
-  def to_binary(:DELETE, key) do
-    bcat([ request, opb(:DELETE)]) <>
-    << byte_size(key) :: size(16) >> <>
-    bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
-    << byte_size(key) :: size(32) >> <>
-    bcat([ opaque, << 0x00 :: size(64) >>]) <>
-    key
-  end
-
   def to_binary(:FLUSH, 0) do
     bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
           << 0x00 >>, datatype, reserved,
@@ -119,6 +110,16 @@ defmodule Memcache.Protocol do
     key
   end
 
+  def to_binary(:DELETE, key, cas) do
+    bcat([ request, opb(:DELETE)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]) <>
+    << byte_size(key) :: size(32) >> <>
+    opaque <>
+    << cas :: size(64) >>  <>
+    key
+  end
+
   def to_binary(:DELETEQ, id, key) do
     bcat([ request, opb(:DELETEQ)]) <>
     << byte_size(key) :: size(16) >> <>
@@ -129,28 +130,30 @@ defmodule Memcache.Protocol do
     key
   end
 
-  def to_binary(:APPEND, key, value) do
+  def to_binary(command, key, value) do
+    to_binary(command, key, value, 0)
+  end
+
+  def to_binary(:APPEND, key, value, cas) do
     bcat([ request, opb(:APPEND)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x00 >>, datatype, reserved]) <>
     << byte_size(key) + byte_size(value) :: size(32) >> <>
-    bcat([ opaque, << 0x00 :: size(64) >>]) <>
+    opaque <>
+    << cas :: size(64) >> <>
     key <>
     value
   end
 
-  def to_binary(:PREPEND, key, value) do
+  def to_binary(:PREPEND, key, value, cas) do
     bcat([ request, opb(:PREPEND)]) <>
     << byte_size(key) :: size(16) >> <>
     bcat([<< 0x00 >>, datatype, reserved]) <>
     << byte_size(key) + byte_size(value) :: size(32) >> <>
-    bcat([ opaque, << 0x00 :: size(64) >>]) <>
+    opaque <>
+    << cas :: size(64) >> <>
     key <>
     value
-  end
-
-  def to_binary(command, key, value) do
-    to_binary(command, key, value, 0, 0, 0)
   end
 
   def to_binary(:APPENDQ, id, key, value) do

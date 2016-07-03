@@ -26,8 +26,8 @@ defmodule Memcache.Connection do
     |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
-  def execute(pid, command, args) do
-    Connection.call(pid, { :execute, command, args })
+  def execute(pid, command, args, opts \\ []) do
+    Connection.call(pid, { :execute, command, args, %{cas: Keyword.get(opts, :cas, false)} })
   end
 
   def execute_quiet(pid, commands) do
@@ -74,15 +74,15 @@ defmodule Memcache.Connection do
     {:connect, :reconnect, %{s | sock: nil, backoff_current: nil}}
   end
 
-  def handle_call({ :execute, _command, _args }, _from, %State{ sock: nil } = s) do
+  def handle_call({ :execute, _command, _args, _opts }, _from, %State{ sock: nil } = s) do
     {:reply, {:error, :closed}, s}
   end
 
-  def handle_call({ :execute, command, args }, _from, %State{ sock: sock } = s) do
+  def handle_call({ :execute, command, args, opts }, _from, %State{ sock: sock } = s) do
     :inet.setopts(sock, [active: false])
     packet = apply(Protocol, :to_binary, [command | args])
     result = case :gen_tcp.send(sock, packet) do
-               :ok -> recv_response(command, s)
+               :ok -> recv_response(command, s, opts)
                { :error, _reason } = error -> { :disconnect, error, error, s }
              end
     :inet.setopts(sock, [active: :once])
@@ -133,19 +133,33 @@ defmodule Memcache.Connection do
 
   ## Private ##
 
-  defp recv_response(:STAT, s) do
+  defp recv_response(:STAT, s, _opts) do
     recv_stat(s, HashDict.new)
   end
 
-  defp recv_response(_command, s) do
-    recv_header(s)
+  defp recv_response(_command, s, %{cas: cas}) do
+    header = recv_header(s)
+    response = recv_body(header, s)
+    if cas do
+      case response do
+        { :reply, result, state } ->
+          result = case result do
+                     { :ok } -> { :ok, header.cas }
+                     { :ok, value } -> { :ok, value, header.cas }
+                     err -> err
+                   end
+          { :reply, result, state }
+          err -> err
+      end
+    else
+      response
+    end
   end
 
   defp recv_header(%State{ sock: sock } = s) do
     case :gen_tcp.recv(sock, 24) do
       { :ok, raw_header } ->
-        header = Protocol.parse_header(raw_header)
-        recv_body(header, s)
+        Protocol.parse_header(raw_header)
       { :error, _reason } = error -> { :disconnect, error, error, s }
     end
   end
@@ -166,7 +180,7 @@ defmodule Memcache.Connection do
   end
 
   defp recv_stat(s, results) do
-    case recv_header(s) do
+    case recv_header(s) |> recv_body(s) do
       { :reply, { :ok, :done }, _ } -> { :reply, { :ok, results }, s }
       { :reply, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
       err -> err

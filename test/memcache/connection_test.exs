@@ -64,6 +64,72 @@ defmodule Memcache.ConnectionTest do
     { :ok } = Connection.close(pid)
   end
 
+  test "cas commands" do
+    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    cas_error = { :error, "Key exists" }
+    cases = [
+      {:FLUSH, [], [], { :ok }},
+      {:GET, ["unknown"], [cas: true], { :error, "Key not found" }},
+      {:SET, ["hello", "world"], [cas: true], { :ok, :cas }},
+      {:SET, ["hello", "world", :cas], [cas: true], { :ok, :cas }},
+      {:SET, ["hello", "another"], [], { :ok }},
+      {:SET, ["hello", "world", :cas], [cas: true], cas_error},
+      {:GET, ["hello"], [cas: true], { :ok, "another", :cas }},
+      {:SET, ["hello", "world", :cas], [cas: true], { :ok, :cas }},
+      {:SET, ["hello", "move on"], [], { :ok }},
+      {:GET, ["hello"], [], { :ok, "move on" }},
+      {:ADD, ["add", "world"], [cas: true], { :ok, :cas }},
+      {:DELETE, ["add", :cas], [], { :ok }},
+      {:ADD, ["add", "world"], [], { :ok }},
+      {:DELETE, ["add", :cas], [], cas_error},
+      {:REPLACE, ["add", "world"], [cas: true], { :ok, :cas }},
+      {:REPLACE, ["add", "world", :cas], [], { :ok }},
+      {:REPLACE, ["add", "world", :cas], [], cas_error},
+      {:DELETE, ["add", :cas], [], cas_error},
+      {:GET, ["add"], [cas: true], { :ok, "world", :cas }},
+      {:DELETE, ["add", :cas], [], { :ok }},
+      {:INCREMENT, ["count", 1, 5], [cas: true], { :ok, 5, :cas }},
+      {:INCREMENT, ["count", 1, 5], [], { :ok, 6 }},
+      {:INCREMENT, ["count", 5, 1, :cas], [], cas_error},
+      {:DELETE, ["count"], [], { :ok }},
+      {:DECREMENT, ["count", 1, 5], [cas: true], { :ok, 5, :cas }},
+      {:DECREMENT, ["count", 1, 5, :cas], [], { :ok, 4 }},
+      {:DECREMENT, ["count", 6, 5, :cas], [], cas_error},
+      {:DELETE, ["count"], [], { :ok }},
+      {:SET, ["new", "new "], [cas: true], { :ok, :cas }},
+      {:APPEND, ["new", "hope", :cas], [], { :ok }},
+      {:APPEND, ["new", "hope", :cas], [], cas_error},
+      {:APPEND, ["new", "hope"], [cas: true], { :ok, :cas }},
+      {:GET, ["new"], [], { :ok, "new hopehope"}},
+      {:SET, ["new", "hope"], [cas: true], { :ok, :cas }},
+      {:PREPEND, ["new", "new ", :cas], [], { :ok }},
+      {:PREPEND, ["new", "new ", :cas], [], cas_error},
+      {:PREPEND, ["new", "new "], [cas: true], { :ok, :cas }},
+      {:FLUSH, [], [], { :ok }},
+    ]
+
+    Enum.reduce(cases, nil, fn ({ command, args, opts, response }, cas) ->
+      embed_cas = fn (:cas) -> cas
+        (rest) -> rest
+      end
+      args = Enum.map(args, embed_cas)
+      case response do
+        { :ok, :cas } ->
+          assert { :ok, cas } = Connection.execute(pid, command, args, opts)
+          cas
+        { :ok, value, :cas } ->
+          assert { :ok, ^value, cas } = Connection.execute(pid, command, args, opts)
+          cas
+        rest ->
+          assert rest == Connection.execute(pid, command, args, opts)
+          cas
+      end
+    end)
+
+    { :ok } = Connection.close(pid)
+  end
+
+
   test "quiet commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
     { :ok } = Connection.execute(pid, :FLUSH, [])
