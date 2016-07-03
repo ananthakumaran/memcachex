@@ -22,6 +22,24 @@ defmodule Memcache do
     execute(connection, :SET, [key, value, cas], opts)
   end
 
+  @cas_error { :error, "Key exists" }
+
+  def cas(connection, key, update, opts \\ []) do
+    case get(connection, key, [cas: true]) do
+      { :ok, value, cas } ->
+        case set_cas(connection, key, update.(value), cas) do
+          @cas_error ->
+            if Keyword.get(opts, :retry, true) do
+              cas(connection, key, update)
+            else
+              @cas_error
+            end
+          result -> result
+        end
+      err -> err
+    end
+  end
+
   def add(connection, key, value, opts \\ []) do
     execute(connection, :ADD, [key, value], opts)
   end

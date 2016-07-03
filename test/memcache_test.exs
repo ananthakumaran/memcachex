@@ -72,4 +72,22 @@ defmodule MemcacheTest do
     assert { :ok } = Memcache.flush(pid)
     assert { :ok } = Memcache.stop(pid)
   end
+
+  test "cas" do
+    assert { :ok, pid } = Memcache.start_link()
+    assert { :ok } == Memcache.set(pid, "counter", "0")
+    increment = fn () ->
+      Enum.each(1..100, fn (_) ->
+        Memcache.cas(pid, "counter", &(Integer.to_string(String.to_integer(&1) + 1)))
+      end)
+    end
+    task_a = Task.async(increment)
+    task_b = Task.async(increment)
+    task_c = Task.async(increment)
+    Task.await(task_a)
+    Task.await(task_b)
+    Task.await(task_c)
+
+    assert { :ok, "300" } == Memcache.get(pid, "counter")
+  end
 end
