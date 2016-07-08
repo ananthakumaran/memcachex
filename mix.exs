@@ -1,24 +1,43 @@
 defmodule Memcache.Mixfile do
   use Mix.Project
 
+  @version "0.1.0"
+
   def project do
-    [ app: :memcache,
-      version: "0.0.1",
-      elixir: ">= 1.0.0",
-      deps: deps(Mix.env) ]
+    [app: :memcachex,
+     version: "0.1.0",
+     elixir: ">= 1.0.0",
+     build_embedded: Mix.env == :prod,
+     start_permanent: Mix.env == :prod,
+     description: "Memcache client",
+     package: package(),
+     docs: docs(),
+     deps: deps(Mix.env)]
   end
 
   def application do
     [applications: [:logger, :connection]]
   end
 
-  defp deps(:dev) do
-    [{:benchfella, "~> 0.3.0"}] ++ deps()
+  def deps(:dev) do
+    [{:ex_doc, "~> 0.12", only: :dev},
+     {:benchfella, "~> 0.3.0", only: :dev},
+     {:exprof, "~> 0.2.0", only: :dev},
+     {:mcd, github: "EchoTeam/mcd", only: :dev},
+     {:mix_test_watch, "~> 0.2", only: :dev}] ++ deps()
+  end
+  def deps(_), do: deps()
+  def deps(), do: [{:connection, "~> 1.0.3"}]
+
+  defp package do
+    %{licenses: ["MIT"],
+      links: %{"Github" => "https://github.com/ananthakumaran/memcachex"}}
   end
 
-  defp deps(_), do: deps()
-
-  defp deps do
-    [{:connection, "~> 1.0.3"}]
+  defp docs do
+    [source_url: "https://github.com/ananthakumaran/memcachex",
+     source_ref: "v#{@version}",
+     main: Memcache,
+     extras: ["README.md"]]
   end
 end

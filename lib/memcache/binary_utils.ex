@@ -1,4 +1,6 @@
 defmodule Memcache.BinaryUtils do
+  @moduledoc false
+
   @ops  [
          GET: 0x00,
          SET: 0x01,
@@ -42,6 +44,8 @@ defmodule Memcache.BinaryUtils do
   end
 
   defmodule Header do
+    @moduledoc false
+
     defstruct opcode: nil, key_length: nil, extra_length: nil, data_type: nil, status: nil, total_body_length: nil, opaque: nil, cas: nil
   end
 

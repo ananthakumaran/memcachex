@@ -1,4 +1,6 @@
 defmodule Memcache do
+  @moduledoc """
+  """
   alias Memcache.Connection
 
   defdelegate start_link(), to: Connection

@@ -1,4 +1,6 @@
 defmodule Memcache.Utils do
+  @moduledoc false
+
   def format_error(:tcp_closed) do
     "TCP connection closed"
   end

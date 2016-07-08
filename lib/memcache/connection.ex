@@ -1,17 +1,56 @@
 defmodule Memcache.Connection do
+  @moduledoc """
+  This module provides low level API to connect and execute commands
+  on a memcached server.
+  """
   require Logger
   use Connection
   alias Memcache.Protocol
   alias Memcache.Utils
 
   defmodule State do
+    @moduledoc false
+
     defstruct opts: nil, sock: nil, backoff_current: nil
   end
 
-  @spec start_link(Keyword.t) :: { :ok, pid } | { :error, term }
-  def start_link(opts \\ [], other_opts \\ []) do
-    opts = with_defaults(opts)
-    Connection.start_link(__MODULE__, opts, other_opts)
+  @doc """
+  Starts a connection to memcached server.
+
+  The actual TCP connection to the memcached server is established
+  asynchronously after the `start_link/2` returns.
+
+  This function accepts two option lists. The first one specifies the
+  options to connect to the memcached server. The second option is
+  passed directly to the underlying `GenServer.start_link/3`, so it
+  can be used to create named process.
+
+  Memcachex automatically tries to reconnect in case of tcp connection
+  failures. It starts with a `:backoff_initial` wait time and
+  increases the wait time exponentially on each successive failures
+  until it reaches the `:backoff_max`. After that, it waits for
+  `:backoff_max` after each failure.
+
+  ## Connection Options
+
+  * `:hostname` - (string) hostname of the memcached server. Defaults
+    to `"localhost"`
+  * `:port` - (integer) port on which the memcached server is
+    listening. Defaults to `11211`
+  * `:backoff_initial` - (integer) initial backoff (in milliseconds)
+    to be used in case of connection failure. Defaults to `500`
+  * `:backoff_max` - (integer) maximum allowed interval between two
+    connection attempt. Defaults to `30_000`
+
+  ## Example
+
+      {:ok, pid} = Memcache.Connection.start_link()
+
+  """
+  @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
+  def start_link(connection_options \\ [], options \\ []) do
+    connection_options = with_defaults(connection_options)
+    Connection.start_link(__MODULE__, connection_options, options)
   end
 
   @default_opts [
@@ -26,14 +65,49 @@ defmodule Memcache.Connection do
     |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
-  def execute(pid, command, args, opts \\ []) do
-    Connection.call(pid, { :execute, command, args, %{cas: Keyword.get(opts, :cas, false)} })
+  @type result :: {:ok, binary} | {:ok, binary, integer} | {:error, binary | atom}
+
+  @doc"""
+  Executes the command with the given args
+
+  ## options
+
+  * `:cas` - (boolean) returns the CAS value associated with the
+    data. This value will be either in second or third position
+    of the returned tuple depending on the command. Defaults to `false`
+
+  ## Example
+
+      iex> {:ok, pid} = Memcache.Connection.start_link()
+      iex> {:ok} = Memcache.Connection.execute(pid, :SET, ["hello", "world"])
+      iex> {:ok, "world"} = Memcache.Connection.execute(pid, :GET, ["hello"])
+      {:ok, "world"}
+
+  """
+  @spec execute(GenServer.server, atom, [binary], Keyword.t) :: result
+  def execute(pid, command, args, options \\ []) do
+    Connection.call(pid, { :execute, command, args, %{cas: Keyword.get(options, :cas, false)} })
   end
 
+  @doc"""
+  Executes the list of quiet commands
+
+  ## Example
+
+      iex> {:ok, pid} = Memcache.Connection.start_link()
+      iex> {:ok, [{:ok}, {:ok}]} = Memcache.Connection.execute_quiet(pid, [{:SETQ, ["1", "one"]}, {:SETQ, ["2", "two"]}])
+      iex> Memcache.Connection.execute_quiet(pid, [{:GETQ, ["1"]}, {:GETQ, ["2"]}])
+      {:ok, [{:ok, "one"}, {:ok, "two"}]}
+
+  """
+  @spec execute_quiet(GenServer.server, [{atom, [binary]}]) :: {:ok, [result]} | {:error, atom}
   def execute_quiet(pid, commands) do
     Connection.call(pid, { :execute_quiet, commands })
   end
 
+  @doc"""
+  Closes the connection to the memcached server.
+  """
   def close(pid) do
     Connection.call(pid, { :close })
   end

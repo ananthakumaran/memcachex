@@ -1,5 +1,5 @@
 alias Memcache.Connection
-defmodule MemcacheBench do
+defmodule MemcachexBench do
   use Benchfella
 
   before_each_bench _ do

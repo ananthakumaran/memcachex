@@ -2,6 +2,8 @@ defmodule Memcache.ConnectionTest do
   use ExUnit.Case
   alias Memcache.Connection
 
+  doctest Memcache.Connection
+
   test "commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
     cases = [

@@ -1,6 +1,7 @@
 # https://github.com/memcached/old-wiki/blob/master/MemcacheBinaryProtocol.wiki
-
 defmodule Memcache.Protocol do
+  @moduledoc false
+
   import Memcache.BinaryUtils
   alias Memcache.BinaryUtils.Header
 
