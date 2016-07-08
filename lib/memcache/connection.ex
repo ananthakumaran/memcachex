@@ -107,7 +107,13 @@ defmodule Memcache.Connection do
 
   @doc"""
   Closes the connection to the memcached server.
+
+  ## Example
+      iex> {:ok, pid} = Memcache.Connection.start_link()
+      iex> Memcache.Connection.close(pid)
+      {:ok}
   """
+  @spec close(GenServer.server) :: {:ok}
   def close(pid) do
     Connection.call(pid, { :close })
   end
