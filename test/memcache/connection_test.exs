@@ -2,7 +2,7 @@ defmodule Memcache.ConnectionTest do
   use ExUnit.Case
   alias Memcache.Connection
 
-  doctest Memcache.Connection
+  doctest Connection
 
   test "commands" do
     { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
@@ -12,6 +12,8 @@ defmodule Memcache.ConnectionTest do
              {:SET, ["hello", "world"], { :ok }},
              {:GET, ["hello"], { :ok, "world" }},
              {:SET, ["hello", "move on"], { :ok }},
+             {:SET, [<< 0x56 :: size(32) >>, << 0x56 :: size(32) >>], { :ok }},
+             {:GET, [<< 0x56 :: size(32) >>], { :ok, << 0x56 :: size(32) >>}},
              {:GET, ["hello"], { :ok, "move on" }},
              {:GETK, ["hello"], { :ok, "hello", "move on" }},
              {:GETK, ["unknown"], { :error, "Key not found" }},

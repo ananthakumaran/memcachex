@@ -1,6 +1,8 @@
 defmodule MemcacheTest do
   use ExUnit.Case
 
+  doctest Memcache
+
   test "commands" do
     assert { :ok, pid } = Memcache.start_link()
     assert { :ok } == Memcache.set(pid, "hello", "world")
@@ -32,6 +34,7 @@ defmodule MemcacheTest do
     assert { :ok } == Memcache.flush(pid)
     assert { :error, "Key not found" } == Memcache.get(pid, "unknown", [cas: true])
     assert { :ok, cas } = Memcache.set(pid, "hello", "world", [cas: true])
+    assert is_integer(cas)
     assert { :ok, cas } = Memcache.set_cas(pid, "hello", "world", cas, [cas: true])
     assert { :ok } == Memcache.set(pid, "hello", "another")
     assert cas_error == Memcache.set_cas(pid, "hello", "world", cas, [cas: true])

@@ -1,6 +1,53 @@
 defmodule Memcache do
   @moduledoc """
+  This module provides a user friendly API to interact with the
+  memcached server. All the functions delegate to
+  `Memcache.Connection`. The `pid` obtained using `start_link/2` or
+  `Memcache.Connection.start_link/2` can be used interchangeably with
+  both modules.
+
+  ## CAS
+
+  Memcache provides a *_cas variant for most of the functions. This
+  function will take an additional argument named `cas` and returns
+  the same value as their counterpart except in case of CAS error. In
+  case of CAS error the returned value would be equal to `{ :error, "Key
+  exists" }`
+
+  ## Options
+
+  Most the functions in this module accepts an optional `Keyword`
+  list. The below list specifies the behavior of each option. The list
+  of option accepted by a specific function will be documented in the
+  specific funcion.
+
+  * `:cas` - (boolean) returns the CAS value associated with the
+    data. This value will be either in second or third position
+    of the returned tuple depending on the command. Defaults to `false`.
+
+  * `:ttl` - (integer) specifies the expiration time in seconds for
+    the corresponding key. Can be set to `0` to disable
+    expiration. Defaults to `0`.
   """
+
+  @type error :: {:error, binary | atom}
+  @type result ::
+  {:ok} | {:ok, integer} |
+  {:ok, binary} | {:ok, binary, integer} |
+  error
+
+  @type fetch_result ::
+  {:ok, binary} | {:ok, binary, integer} |
+  error
+
+  @type fetch_integer_result ::
+  {:ok, integer} | {:ok, integer, integer} |
+  error
+
+  @type store_result ::
+  {:ok} | {:ok, integer} |
+  error
+
   alias Memcache.Connection
 
   defdelegate start_link(), to: Connection
@@ -12,108 +59,163 @@ defmodule Memcache do
   defdelegate execute(connection, command, args), to: Connection
   defdelegate execute(connection, command, args, opts), to: Connection
 
+  @doc """
+  Gets the value associated with the key
+
+  Returns `{:ok, value} or `{:error, "Key not found"}` if the given
+  key doesn't exist.
+
+  Accepted option: `cas`
+  """
+  @spec get(GenServer.server, binary, Keyword.t) :: fetch_result
   def get(connection, key, opts \\ []) do
     execute(connection, :GET, [key], opts)
   end
 
+  @doc """
+  Sets the key to value
+
+  Accepted options: `cas`, `ttl`
+  """
+  @spec set(GenServer.server, binary, binary, Keyword.t) :: store_result
   def set(connection, key, value, opts \\ []) do
     set_cas(connection, key, value, 0, opts)
   end
 
+  @doc """
+  Sets the key to value if the key exists and has CAS value equal to
+  the provided value
+
+  Accepted options: `cas`, `ttl`
+  """
+  @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def set_cas(connection, key, value, cas, opts \\ []) do
     execute(connection, :SET, [key, value, cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
   @cas_error { :error, "Key exists" }
 
+  @doc """
+  Compare and swap value using optimistic locking.
+
+  1. Get the existing value for key
+  2. If it exists, call the update function with the value
+  3. Set the returned value for key
+
+  The 3rd operation will fail if someone else has updated the value
+  for the same key in the mean time. In that case, by default, this
+  function will go to step 1 and try again. Retry behavior can be
+  disabled by passing `[retry: false]` option.
+  """
+  @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: fetch_result
   def cas(connection, key, update, opts \\ []) do
     case get(connection, key, [cas: true]) do
       { :ok, value, cas } ->
-        case set_cas(connection, key, update.(value), cas) do
+        new_value = update.(value)
+        case set_cas(connection, key, new_value, cas) do
           @cas_error ->
             if Keyword.get(opts, :retry, true) do
               cas(connection, key, update)
             else
               @cas_error
             end
-          result -> result
+          { :error, _ } = other_errors -> other_errors
+          { :ok } -> { :ok, new_value }
         end
       err -> err
     end
   end
 
+  @spec add(GenServer.server, binary, binary, Keyword.t) :: store_result
   def add(connection, key, value, opts \\ []) do
     execute(connection, :ADD, [key, value, Keyword.get(opts, :ttl, 0)], opts)
   end
 
+  @spec replace(GenServer.server, binary, binary, Keyword.t) :: store_result
   def replace(connection, key, value, opts \\ []) do
     replace_cas(connection, key, value, 0, opts)
   end
 
+  @spec replace_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def replace_cas(connection, key, value, cas, opts \\ []) do
     execute(connection, :REPLACE, [key, value, cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
+  @spec delete(GenServer.server, binary) :: store_result
   def delete(connection, key) do
     execute(connection, :DELETE, [key])
   end
 
+  @spec delete_cas(GenServer.server, binary, integer) :: store_result
   def delete_cas(connection, key, cas) do
     execute(connection, :DELETE, [key, cas])
   end
 
+  @spec flush(GenServer.server, Keyword.t) :: store_result
   def flush(connection, opts \\ []) do
     execute(connection, :FLUSH, [Keyword.get(opts, :ttl, 0)])
   end
 
+  @spec append(GenServer.server, binary, binary, Keyword.t) :: store_result
   def append(connection, key, value, opts \\ []) do
     execute(connection, :APPEND, [key, value], opts)
   end
 
+  @spec append_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def append_cas(connection, key, value, cas, opts \\ []) do
     execute(connection, :APPEND, [key, value, cas], opts)
   end
 
+  @spec prepend(GenServer.server, binary, binary, Keyword.t) :: store_result
   def prepend(connection, key, value, opts \\ []) do
     execute(connection, :PREPEND, [key, value], opts)
   end
 
+  @spec prepend_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def prepend_cas(connection, key, value, cas, opts \\ []) do
     execute(connection, :PREPEND, [key, value, cas], opts)
   end
 
+  @spec incr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
   def incr(connection, key, opts \\ []) do
     incr_cas(connection, key, 0, opts)
   end
 
+  @spec incr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
   def incr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
     execute(connection, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
+  @spec decr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
   def decr(connection, key, opts \\ []) do
     decr_cas(connection, key, 0, opts)
   end
 
+  @spec decr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
   def decr_cas(connection, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
     execute(connection, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, Keyword.get(opts, :ttl, 0)], opts)
   end
 
+  @spec stat(GenServer.server) :: HashDict.t | error
   def stat(connection) do
     execute(connection, :STAT, [])
   end
 
+  @spec stat(GenServer.server, String.t) :: HashDict.t | error
   def stat(connection, key) do
     execute(connection, :STAT, [key])
   end
 
+  @spec version(GenServer.server) :: String.t | error
   def version(connection) do
     execute(connection, :VERSION, [])
   end
 
+  @spec noop(GenServer.server) :: {:ok} | error
   def noop(connection) do
     execute(connection, :NOOP, [])
   end

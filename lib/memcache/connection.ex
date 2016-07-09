@@ -65,9 +65,7 @@ defmodule Memcache.Connection do
     |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
   end
 
-  @type result :: {:ok, binary} | {:ok, binary, integer} | {:error, binary | atom}
-
-  @doc"""
+  @doc """
   Executes the command with the given args
 
   ## options
@@ -84,12 +82,12 @@ defmodule Memcache.Connection do
       {:ok, "world"}
 
   """
-  @spec execute(GenServer.server, atom, [binary], Keyword.t) :: result
+  @spec execute(GenServer.server, atom, [binary], Keyword.t) :: Memcache.result
   def execute(pid, command, args, options \\ []) do
     Connection.call(pid, { :execute, command, args, %{cas: Keyword.get(options, :cas, false)} })
   end
 
-  @doc"""
+  @doc """
   Executes the list of quiet commands
 
   ## Example
@@ -100,12 +98,12 @@ defmodule Memcache.Connection do
       {:ok, [{:ok, "one"}, {:ok, "two"}]}
 
   """
-  @spec execute_quiet(GenServer.server, [{atom, [binary]}]) :: {:ok, [result]} | {:error, atom}
+  @spec execute_quiet(GenServer.server, [{atom, [binary]}]) :: {:ok, [Memcache.result]} | {:error, atom}
   def execute_quiet(pid, commands) do
     Connection.call(pid, { :execute_quiet, commands })
   end
 
-  @doc"""
+  @doc """
   Closes the connection to the memcached server.
 
   ## Example
