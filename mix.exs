@@ -9,7 +9,7 @@ defmodule Memcache.Mixfile do
      elixir: ">= 1.0.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     description: "Memcache client",
+     description: "Memcached client",
      package: package(),
      docs: docs(),
      deps: deps(Mix.env)]
@@ -31,7 +31,8 @@ defmodule Memcache.Mixfile do
 
   defp package do
     %{licenses: ["MIT"],
-      links: %{"Github" => "https://github.com/ananthakumaran/memcachex"}}
+      links: %{"Github" => "https://github.com/ananthakumaran/memcachex"},
+      maintainers: ["ananthakumaran@gmail.com"]}
   end
 
   defp docs do
