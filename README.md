@@ -28,8 +28,8 @@ provides a less restrictive API. See the
 
 ```elixir
 { :ok, pid } = Memcache.start_link()
-{ :ok } == Memcache.set(pid, "hello", "world")
-{ :ok, "world" } == Memcache.get(pid, "hello")
+{ :ok } = Memcache.set(pid, "hello", "world")
+{ :ok, "world" } = Memcache.get(pid, "hello")
 ```
 
 See test folder for further examples.
