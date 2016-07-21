@@ -158,7 +158,7 @@ defmodule Memcache.Connection do
 
   def handle_call({ :execute, command, args, opts }, _from, %State{ sock: sock } = s) do
     :inet.setopts(sock, [active: false])
-    packet = apply(Protocol, :to_binary, [command | args])
+    packet = serialize(command, args)
     result = case :gen_tcp.send(sock, packet) do
                :ok -> recv_response(command, s, opts)
                { :error, _reason } = error -> { :disconnect, error, error, s }
@@ -174,7 +174,7 @@ defmodule Memcache.Connection do
   def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
     :inet.setopts(sock, [active: false])
     { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
-      { packet <> apply(Protocol, :to_binary, [command | [i | args]]), [{ i, command, args } | commands], i + 1 }
+      { packet <> serialize(command, [i | args]), [{ i, command, args } | commands], i + 1 }
     end)
     packet = packet <> Protocol.to_binary(:NOOP, i)
     result = case :gen_tcp.send(sock, packet) do
@@ -317,5 +317,9 @@ defmodule Memcache.Connection do
     first = binary_part(bin, 0, at)
     rest = binary_part(bin, at, byte_size(bin) - at)
     { first, rest }
+  end
+
+  defp serialize(command, args) do
+    apply(Protocol, :to_binary, [command | args])
   end
 end
