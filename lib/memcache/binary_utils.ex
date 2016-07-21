@@ -29,6 +29,9 @@ defmodule Memcache.BinaryUtils do
          FLUSHQ: 0x18,
          APPENDQ: 0x19,
          PREPENDQ: 0x1A,
+         AUTH_LIST: 0x20,
+         AUTH_START: 0x21,
+         AUTH_STEP: 0x22
   ]
 
   defmacro opb(x) do

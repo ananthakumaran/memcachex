@@ -1,5 +1,7 @@
 defmodule Memcache.ConnectionTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
+  import TestUtils
   alias Memcache.Connection
 
   doctest Connection
@@ -277,5 +279,38 @@ defmodule Memcache.ConnectionTest do
     { :ok } = Connection.execute(:memcachex, :SET, ["hello", "world"])
     { :ok, "world" } = Connection.execute(:memcachex, :GET, ["hello"])
     { :ok } = Connection.close(pid)
+  end
+
+  test "continue if auth is not supported" do
+    assert capture_log(fn ->
+      { :ok, pid } = Connection.start_link([auth: {:plain, "user", "pass"}])
+      Process.sleep(100)
+      { :ok } = Connection.close(pid)
+    end) =~ "Authentication not required"
+  end
+
+  @tag :authentication
+  test "fail on unsupported auth type" do
+    assert_exit(fn ->
+      { :ok, pid } = Connection.start_link([port: 9494, auth: {:ldap, "user", "pass"}])
+      Process.sleep(100)
+      { :ok } = Connection.close(pid)
+    end, ~r/only supports :plain/)
+  end
+
+  @tag :authentication
+  test "plain auth" do
+    { :ok, pid } = Connection.start_link([port: 9494, auth: {:plain, "user", "pass"}])
+    { :ok } = Connection.execute(pid, :NOOP, [])
+    { :ok } = Connection.close(pid)
+  end
+
+  @tag :authentication
+  test "invalid password" do
+    assert_exit(fn ->
+      { :ok, pid } = Connection.start_link([port: 9494, auth: {:plain, "user", "ps"}])
+      Process.sleep(100)
+      { :ok } = Connection.close(pid)
+    end, ~r/auth.*not.*successful/i)
   end
 end

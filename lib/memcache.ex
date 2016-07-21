@@ -25,7 +25,7 @@ defmodule Memcache do
 
   ## Options
 
-  Most the functions in this module accepts an optional `Keyword`
+  Most the functions in this module accept an optional `Keyword`
   list. The below list specifies the behavior of each option. The list
   of option accepted by a specific function will be documented in the
   specific funcion.

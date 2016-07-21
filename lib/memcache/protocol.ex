@@ -33,6 +33,13 @@ defmodule Memcache.Protocol do
           << 0x00 :: size(64) >> ])
   end
 
+  def to_binary(:AUTH_LIST) do
+    bcat([ request, opb(:AUTH_LIST), << 0x00 :: size(16) >>,
+           << 0x00 >>, datatype, reserved,
+           << 0x00 :: size(32) >>, opaque,
+           << 0x00 :: size(64) >> ])
+  end
+
   def to_binary(command) do
     to_binary(command, 0)
   end
@@ -87,9 +94,32 @@ defmodule Memcache.Protocol do
     << expiry :: size(32) >>
   end
 
+  def to_binary(:AUTH_START, key) do
+    bcat([ request, opb(:AUTH_START)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) :: size(32) >> <>
+    opaque <>
+    << 0x00 :: size(64) >> <>
+    key
+  end
+
+
   def to_binary(command, key) do
     to_binary(command, key, 0)
   end
+
+  def to_binary(:AUTH_START, key, value) do
+    bcat([ request, opb(:AUTH_START)]) <>
+    << byte_size(key) :: size(16) >> <>
+    bcat([<< 0x00 >>, datatype, reserved]) <>
+    << byte_size(key) + byte_size(value) :: size(32) >> <>
+    opaque <>
+    << 0x00 :: size(64) >> <>
+    key <>
+    value
+  end
+
 
   def to_binary(:GETQ, id, key) do
     bcat([ request, opb(:GETQ)]) <>
@@ -368,6 +398,10 @@ defmodule Memcache.Protocol do
     { :ok, rest }
   end
 
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_LIST) }, rest) do
+    { :ok, rest }
+  end
+
   def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENT) }, rest) do
     << value :: size(64) >> = rest
     { :ok, value }
@@ -388,6 +422,10 @@ defmodule Memcache.Protocol do
     { opaque, { :ok, value }}
   end
 
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_START)}, _rest) do
+    { :ok }
+  end
+
   def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0 }, _rest) do
     { :ok, :done }
   end
@@ -396,6 +434,10 @@ defmodule Memcache.Protocol do
     value_size = (total_body_length - key_length)
     << key :: binary-size(key_length),  value :: binary-size(value_size) >> = rest
     { :ok, key, value }
+  end
+
+  def parse_body(%Header{ status: 0x0021 }, body) do
+    { :error, :auth_step, body }
   end
 
   defparse_empty(:SET)
@@ -414,6 +456,9 @@ defmodule Memcache.Protocol do
   defparse_error(0x0004, "Invalid arguments")
   defparse_error(0x0005, "Item not stored")
   defparse_error(0x0006, "Incr/Decr on non-numeric value")
+  defparse_error(0x0008, "Authentication Error")
+  defparse_error(0x0009, "Authentication Continue")
+  defparse_error(0x0020, "Authentication required / Not Successful")
   defparse_error(0x0081, "Unknown command")
   defparse_error(0x0082, "Out of memory")
 

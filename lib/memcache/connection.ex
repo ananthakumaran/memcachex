@@ -42,6 +42,10 @@ defmodule Memcache.Connection do
   * `:backoff_max` - (integer) maximum allowed interval between two
     connection attempt. Defaults to `30_000`
 
+  * `:auth` - (tuple) only plain authentication method is
+    supported. It is specified using the following format `{:plain,
+    "username", "password"}`. Defaults to `nil`.
+
   ## Example
 
       {:ok, pid} = Memcache.Connection.start_link()
@@ -127,28 +131,30 @@ defmodule Memcache.Connection do
         if info == :backoff || info == :reconnect do
           Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
         end
+        state = %{s | sock: sock, backoff_current: nil }
+        result = authenticate(state)
         :inet.setopts(sock, [active: :once])
-        { :ok, %{s | sock: sock, backoff_current: nil } }
+        result
       { :error, reason } ->
         Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
-        backoff = if !s.backoff_current do
-          s.opts[:backoff_initial]
-        else
-          Utils.next_backoff(s.backoff_current, s.opts[:backoff_max])
-        end
+        backoff = get_backoff(s)
         { :backoff, backoff, %{s | backoff_current: backoff} }
     end
   end
 
   def disconnect({ :close, from }, %State{ sock: sock } = state) do
-    :ok = :gen_tcp.close(sock)
+    if sock do
+      :ok = :gen_tcp.close(sock)
+    end
     Connection.reply(from, { :ok })
     {:stop, :normal, %{ state | sock: nil }}
   end
 
   def disconnect({:error, reason}, %State{ sock: sock, opts: opts } = s) do
     Logger.error(["Disconnected from Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
-    :ok = :gen_tcp.close(sock)
+    if sock do
+      :ok = :gen_tcp.close(sock)
+    end
     {:connect, :reconnect, %{s | sock: nil, backoff_current: nil}}
   end
 
@@ -158,11 +164,7 @@ defmodule Memcache.Connection do
 
   def handle_call({ :execute, command, args, opts }, _from, %State{ sock: sock } = s) do
     :inet.setopts(sock, [active: false])
-    packet = serialize(command, args)
-    result = case :gen_tcp.send(sock, packet) do
-               :ok -> recv_response(command, s, opts)
-               { :error, _reason } = error -> { :disconnect, error, error, s }
-             end
+    result = send_and_receive(s, command, args, opts)
     :inet.setopts(sock, [active: :once])
     result
   end
@@ -173,14 +175,7 @@ defmodule Memcache.Connection do
 
   def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
     :inet.setopts(sock, [active: false])
-    { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
-      { packet <> serialize(command, [i | args]), [{ i, command, args } | commands], i + 1 }
-    end)
-    packet = packet <> Protocol.to_binary(:NOOP, i)
-    result = case :gen_tcp.send(sock, packet) do
-               :ok -> recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>)
-               { :error, _reason } = error -> { :disconnect, error, error, s }
-             end
+    result = send_and_receive_quient(s, commands)
     :inet.setopts(sock, [active: :once])
     result
   end
@@ -211,23 +206,103 @@ defmodule Memcache.Connection do
 
   ## Private ##
 
+  defp send_and_receive(%State{ sock: sock } = s, command, args, opts) do
+    packet = serialize(command, args)
+    case :gen_tcp.send(sock, packet) do
+      :ok -> reply_or_disconnect(recv_response(command, s, opts))
+      { :error, _reason } = error
+        -> { :disconnect, error, error, s }
+    end
+  end
+
+  defp send_and_receive_quient(%State{ sock: sock } = s, commands) do
+    { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
+      { packet <> serialize(command, [i | args]), [{ i, command, args } | commands], i + 1 }
+    end)
+    packet = packet <> Protocol.to_binary(:NOOP, i)
+    case :gen_tcp.send(sock, packet) do
+      :ok -> reply_or_disconnect(recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>))
+      { :error, _reason } = error -> { :disconnect, error, error, s }
+    end
+  end
+
+  defp reply_or_disconnect({:ok, response, s}), do: {:reply, response, s}
+  defp reply_or_disconnect({:error, _reason, s} = error), do: {:disconnect, error, error, s}
+
+  defp get_backoff(s) do
+    if !s.backoff_current do
+      s.opts[:backoff_initial]
+    else
+      Utils.next_backoff(s.backoff_current, s.opts[:backoff_max])
+    end
+  end
+
+  defp authenticate(%State{ opts: opts } = s) do
+    case opts[:auth] do
+      nil -> {:ok, s}
+      {:plain, username, password} -> auth_plain(s, username, password)
+      _ -> {:stop, "Memcachex client only supports :plain authentication type", s}
+    end
+  end
+
+  defp abort_auth_and_retry(%State{sock: sock} = s) do
+    :ok = :gen_tcp.close(sock)
+    backoff = get_backoff(s)
+    { :backoff, backoff, %{s | backoff_current: backoff, sock: nil} }
+  end
+
+  defp execute_auth_command(%State{sock: sock} = s, command, args) do
+    packet = apply(Protocol, :to_binary, [command | args])
+    case :gen_tcp.send(sock, packet) do
+      :ok -> recv_response(command, s, %{cas: false})
+      { :error, _reason } -> abort_auth_and_retry(s)
+    end
+  end
+
+  defp auth_plain(%State{} = s, username, password) do
+    case execute_auth_command(s, :AUTH_LIST, []) do
+      {:ok, {:ok, list}, s} ->
+        supported = String.split(list, " ")
+        if !Enum.member?(supported, "PLAIN") do
+          {:stop, "Server doesn't support PLAIN authentication", s}
+        else
+          auth_plain_continue(s, username, password)
+        end
+      {:ok, {:error, "Unknown command"}, s} ->
+        Logger.warn "Authentication not required/supported by server"
+        {:ok, s}
+      {:ok, {:error, reason}, s} -> {:stop, reason, s}
+      {:error, _reason, s} -> abort_auth_and_retry(s)
+    end
+  end
+
+  defp auth_plain_continue(s, username, password) do
+    case execute_auth_command(s, :AUTH_START, ["PLAIN", "\0#{username}\0#{password}"]) do
+      {:ok, {:ok}, s} ->
+        {:ok, s}
+      {:ok, {:error, reason}, s} ->
+        {:stop, reason, s}
+      {:error, _reason, s} -> abort_auth_and_retry(s)
+    end
+  end
+
   defp recv_response(:STAT, s, _opts) do
     recv_stat(s, HashDict.new)
   end
-
   defp recv_response(_command, s, %{cas: cas}) do
     header = recv_header(s)
     response = recv_body(header, s)
     if cas do
       case response do
-        { :reply, result, state } ->
+        { :ok, result, state } ->
+          {:ok, %{cas: cas_version}} = header
           result = case result do
-                     { :ok } -> { :ok, header.cas }
-                     { :ok, value } -> { :ok, value, header.cas }
+                     { :ok } -> { :ok, cas_version }
+                     { :ok, value } -> { :ok, value, cas_version }
                      err -> err
                    end
-          { :reply, result, state }
-          err -> err
+          { :ok, result, state }
+        error -> error
       end
     else
       response
@@ -237,36 +312,37 @@ defmodule Memcache.Connection do
   defp recv_header(%State{ sock: sock } = s) do
     case :gen_tcp.recv(sock, 24) do
       { :ok, raw_header } ->
-        Protocol.parse_header(raw_header)
-      { :error, _reason } = error -> { :disconnect, error, error, s }
+        { :ok, Protocol.parse_header(raw_header) }
+      { :error, reason } -> { :error, reason, s}
     end
   end
 
-  defp recv_body(header, %State{ sock: sock } = s) do
+  defp recv_body({:error, _, _} = error, _), do: error
+  defp recv_body({:ok, header}, %State{ sock: sock } = s) do
     body_size = Protocol.total_body_size(header)
     if body_size > 0 do
       case :gen_tcp.recv(sock, body_size) do
         { :ok, body } ->
           response = Protocol.parse_body(header, body)
-          { :reply, response, s }
-        { :error, _reason } = error -> { :disconnect, error, error, s }
+          { :ok, response, s }
+        { :error, reason } -> { :error, reason, s}
       end
     else
       response = Protocol.parse_body(header, :empty)
-      { :reply, response, s }
+      { :ok, response, s }
     end
   end
 
   defp recv_stat(s, results) do
     case recv_header(s) |> recv_body(s) do
-      { :reply, { :ok, :done }, _ } -> { :reply, { :ok, results }, s }
-      { :reply, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
+      { :ok, { :ok, :done }, _ } -> { :ok, { :ok, results }, s }
+      { :ok, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
       err -> err
     end
   end
 
   defp recv_response_quiet([], s, results, _buffer) do
-    { :reply, { :ok, Enum.reverse(tl(results)) }, s }
+    { :ok, { :ok, Enum.reverse(tl(results)) }, s }
   end
 
   defp recv_response_quiet(commands, s, results, buffer) when byte_size(buffer) >= 24 do
@@ -309,7 +385,7 @@ defmodule Memcache.Connection do
   defp read_more_if_needed(%State{ sock: sock } = s, buffer, min_required) do
     case :gen_tcp.recv(sock, 0) do
       { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
-      { :error, _reason } = error -> { :disconnect, error, error, s }
+      { :error, reason } -> { :error, reason, s}
     end
   end
 
