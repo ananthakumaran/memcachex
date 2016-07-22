@@ -1,8 +1,11 @@
 defmodule TestUtils do
   import ExUnit.Assertions
+  import ExUnit.CaptureLog
   def assert_exit(task, expected_reason \\ :__none, timeout \\ 500) do
     Process.flag(:trap_exit, true)
-    pid = spawn_link(task)
+    pid = spawn_link(fn ->
+      capture_log(task)
+    end)
     receive do
       {:EXIT, ^pid, reason} ->
         Process.flag(:trap_exit, false)
