@@ -1,5 +1,5 @@
 defmodule Memcache.ConnectionTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   import ExUnit.CaptureLog
   import TestUtils
   alias Memcache.Connection

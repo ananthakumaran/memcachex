@@ -1,5 +1,6 @@
 defmodule MemcacheTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
+  import TestUtils
 
   doctest Memcache
 
@@ -122,5 +123,50 @@ defmodule MemcacheTest do
 
     assert { :error, "Key not found" } == Memcache.get(pid, "hello")
     assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "namespace" do
+    assert { :ok, namespaced } = Memcache.start_link([namespace: "app"])
+    assert { :ok, pid } = Memcache.start_link()
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } == Memcache.set(namespaced, "hello", "world")
+    assert { :error, "Key not found" } == Memcache.get(pid, "hello")
+    assert { :ok, "world" } == Memcache.get(namespaced, "hello")
+    assert { :ok, "world" } == Memcache.get(pid, "app:hello")
+    assert { :ok } == Memcache.delete(namespaced, "hello")
+    assert { :error, "Key not found" } == Memcache.get(namespaced, "hello")
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } = Memcache.stop(namespaced)
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "default ttl" do
+    assert { :ok, pid } = Memcache.start_link([ttl: 1])
+    assert { :ok } == Memcache.flush(pid)
+
+    assert { :ok } == Memcache.set(pid, "set", "world")
+    assert { :ok } == Memcache.set(pid, "replace", "world")
+    assert { :ok } == Memcache.replace(pid, "replace", "world")
+    assert { :ok } == Memcache.add(pid, "add", "world")
+    assert { :ok, 5 } == Memcache.incr(pid, "incr", default: 5)
+    assert { :ok, 5 } == Memcache.decr(pid, "decr", default: 5)
+
+    :timer.sleep(2000)
+
+    assert { :error, "Key not found" } == Memcache.get(pid, "set")
+    assert { :error, "Key not found" } == Memcache.get(pid, "replace")
+    assert { :error, "Key not found" } == Memcache.get(pid, "add")
+    assert { :error, "Key not found" } == Memcache.get(pid, "incr")
+    assert { :error, "Key not found" } == Memcache.get(pid, "decr")
+
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "server and connection are linked" do
+    assert_exit(fn ->
+      assert { :ok, server } = Memcache.start_link()
+      connection = Memcache.connection_pid(server)
+      Process.exit(connection, :kill)
+    end, :killed)
   end
 end
