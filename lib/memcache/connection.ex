@@ -216,10 +216,10 @@ defmodule Memcache.Connection do
   end
 
   defp send_and_receive_quient(%State{ sock: sock } = s, commands) do
-    { packet, commands, i } = Enum.reduce(commands, { <<>>, [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
-      { packet <> serialize(command, [i | args]), [{ i, command, args } | commands], i + 1 }
+    { packet, commands, i } = Enum.reduce(commands, { [], [], 1 }, fn ({ command, args }, { packet, commands, i }) ->
+      { [packet | serialize(command, [i | args])], [{ i, command, args } | commands], i + 1 }
     end)
-    packet = packet <> Protocol.to_binary(:NOOP, i)
+    packet = [packet | Protocol.to_binary(:NOOP, i)]
     case :gen_tcp.send(sock, packet) do
       :ok -> reply_or_disconnect(recv_response_quiet(Enum.reverse([ { i, :NOOP, [] } | commands]), s, [], <<>>))
       { :error, _reason } = error -> { :disconnect, error, error, s }
