@@ -13,6 +13,8 @@ defmodule Memcache.ConnectionTest do
              {:GET, ["unknown"], { :error, "Key not found" }},
              {:SET, ["hello", "world"], { :ok }},
              {:GET, ["hello"], { :ok, "world" }},
+             {:SET, ["hello", ['w', 'o', "rl", 'd']], { :ok }},
+             {:GET, ["hello"], { :ok, "world" }},
              {:SET, ["hello", "move on"], { :ok }},
              {:SET, [<< 0x56 :: size(32) >>, << 0x56 :: size(32) >>], { :ok }},
              {:GET, [<< 0x56 :: size(32) >>], { :ok, << 0x56 :: size(32) >>}},
