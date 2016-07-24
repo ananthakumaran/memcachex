@@ -4,8 +4,29 @@ defmodule MemcacheTest do
 
   doctest Memcache
 
-  test "commands" do
-    assert { :ok, pid } = Memcache.start_link()
+  def append_prepend(pid) do
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } == Memcache.set(pid, "hello", "world")
+    assert { :ok } == Memcache.append(pid, "hello", "!")
+    assert { :ok, "world!" } == Memcache.get(pid, "hello")
+    assert { :ok } == Memcache.prepend(pid, "hello", "!")
+    assert { :ok, "!world!" } == Memcache.get(pid, "hello")
+    cas_error = { :error, "Key exists" }
+
+    assert { :ok, cas } = Memcache.set(pid, "new", "new ", [cas: true])
+    assert { :ok } == Memcache.append_cas(pid, "new", "hope", cas)
+    assert cas_error == Memcache.append_cas(pid, "new", "hope", cas)
+    assert { :ok, _cas } = Memcache.append(pid, "new", "hope", [cas: true])
+    assert { :ok, "new hopehope"} == Memcache.get(pid, "new")
+    assert { :ok, cas } = Memcache.set(pid, "new", "hope", [cas: true])
+    assert { :ok } == Memcache.prepend_cas(pid, "new", "new ", cas)
+    assert cas_error == Memcache.prepend_cas(pid, "new", "new ", cas)
+    assert { :ok, _cas } = Memcache.prepend(pid, "new", "new ", [cas: true])
+    assert { :ok } = Memcache.flush(pid)
+  end
+
+  def common(pid) do
+    assert { :ok } = Memcache.flush(pid)
     assert { :ok } == Memcache.set(pid, "hello", "world")
     assert { :ok, "world" } == Memcache.get(pid, "hello")
     assert { :error, "Key exists" } == Memcache.add(pid, "hello", "world")
@@ -15,10 +36,6 @@ defmodule MemcacheTest do
     assert { :error, "Key not found" } == Memcache.get(pid, "hello")
     assert { :error, "Key not found" } == Memcache.delete(pid, "hello")
     assert { :ok } == Memcache.add(pid, "hello", "world")
-    assert { :ok } == Memcache.append(pid, "hello", "!")
-    assert { :ok, "world!" } == Memcache.get(pid, "hello")
-    assert { :ok } == Memcache.prepend(pid, "hello", "!")
-    assert { :ok, "!world!" } == Memcache.get(pid, "hello")
     assert { :ok, 3 } == Memcache.incr(pid, "count", by: 5, default: 3)
     assert { :ok, 8 } == Memcache.incr(pid, "count", by: 5)
     assert { :ok, 3 } == Memcache.decr(pid, "count", by: 5)
@@ -61,19 +78,16 @@ defmodule MemcacheTest do
     assert { :ok, 4 } == Memcache.decr_cas(pid, "count", cas, [by: 1, default: 5])
     assert cas_error == Memcache.decr_cas(pid, "count", cas, [by: 6, default: 5])
     assert { :ok } == Memcache.delete(pid, "count")
-    assert { :ok, cas } = Memcache.set(pid, "new", "new ", [cas: true])
-    assert { :ok } == Memcache.append_cas(pid, "new", "hope", cas)
-    assert cas_error == Memcache.append_cas(pid, "new", "hope", cas)
-    assert { :ok, _cas } = Memcache.append(pid, "new", "hope", [cas: true])
-    assert { :ok, "new hopehope"} == Memcache.get(pid, "new")
-    assert { :ok, cas } = Memcache.set(pid, "new", "hope", [cas: true])
-    assert { :ok } == Memcache.prepend_cas(pid, "new", "new ", cas)
-    assert cas_error == Memcache.prepend_cas(pid, "new", "new ", cas)
-    assert { :ok, _cas } = Memcache.prepend(pid, "new", "new ", [cas: true])
     assert { :ok } == Memcache.flush(pid)
 
     assert { :ok } = Memcache.noop(pid)
     assert { :ok } = Memcache.flush(pid)
+  end
+
+  test "commands" do
+    assert { :ok, pid } = Memcache.start_link()
+    common(pid)
+    append_prepend(pid)
     assert { :ok } = Memcache.stop(pid)
   end
 
@@ -136,8 +150,11 @@ defmodule MemcacheTest do
     assert { :ok } == Memcache.delete(namespaced, "hello")
     assert { :error, "Key not found" } == Memcache.get(namespaced, "hello")
     assert { :ok } = Memcache.flush(pid)
-    assert { :ok } = Memcache.stop(namespaced)
     assert { :ok } = Memcache.stop(pid)
+
+    common(namespaced)
+    append_prepend(namespaced)
+    assert { :ok } = Memcache.stop(namespaced)
   end
 
   test "default ttl" do
@@ -159,6 +176,7 @@ defmodule MemcacheTest do
     assert { :error, "Key not found" } == Memcache.get(pid, "incr")
     assert { :error, "Key not found" } == Memcache.get(pid, "decr")
 
+    common(pid)
     assert { :ok } = Memcache.stop(pid)
   end
 
@@ -168,5 +186,41 @@ defmodule MemcacheTest do
       connection = Memcache.connection_pid(server)
       Process.exit(connection, :kill)
     end, :killed)
+  end
+
+  test "erlang coder" do
+    assert { :ok, pid } = Memcache.start_link([coder: Memcache.Coder.Erlang])
+    common(pid)
+
+    assert { :ok } == Memcache.set(pid, "hello", ["list", 1])
+    assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
+    assert { :ok } = Memcache.stop(pid)
+
+    assert { :ok, pid } = Memcache.start_link([coder: {Memcache.Coder.Erlang, [compressed: 9]}])
+    assert { :ok } == Memcache.set(pid, "hello", ["list", 1])
+    assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "json coder" do
+    assert { :ok, pid } = Memcache.start_link([coder: Memcache.Coder.JSON])
+    common(pid)
+
+    assert { :ok } == Memcache.set(pid, "hello", ["list", 1])
+    assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
+    assert { :ok } == Memcache.set(pid, "hello", %{ "a" => 1 })
+    assert { :ok, %{ "a" => 1 } } == Memcache.get(pid, "hello")
+    assert { :ok } = Memcache.stop(pid)
+
+    assert { :ok, pid } = Memcache.start_link([coder: {Memcache.Coder.JSON, [keys: :atoms]}])
+    assert { :ok } == Memcache.set(pid, "hello", %{hello: "world"})
+    assert { :ok, %{hello: "world"} } == Memcache.get(pid, "hello")
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "zip coder" do
+    assert { :ok, pid } = Memcache.start_link([coder: Memcache.Coder.ZIP])
+    common(pid)
+    assert { :ok } = Memcache.stop(pid)
   end
 end

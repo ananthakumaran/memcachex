@@ -27,7 +27,10 @@ defmodule Memcache.Mixfile do
      {:mix_test_watch, "~> 0.2", only: :dev}] ++ deps()
   end
   def deps(_), do: deps()
-  def deps(), do: [{:connection, "~> 1.0.3"}]
+  def deps() do
+    [{:connection, "~> 1.0.3"},
+     {:poison, "~> 1.5 or ~> 2.0", optional: true}]
+  end
 
   defp package do
     %{licenses: ["MIT"],

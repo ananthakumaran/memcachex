@@ -9,6 +9,16 @@ defmodule Memcache do
       { :ok } = Memcache.set(pid, "hello", "world")
       { :ok, "world" } = Memcache.get(pid, "hello")
 
+
+  ## Coder
+
+  `Memcache.Coder` allows you to specify how the value should be encoded before
+  sending it to the server and how it should be decoded after it is
+  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
+  `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
+  `Memcache.Coder.ZIP`. Custom coders can be created by implementing
+  the `Memcache.Coder` behaviour.
+
   ## CAS
 
   CAS feature allows to atomically perform two commands on a key. Get
@@ -65,7 +75,8 @@ defmodule Memcache do
 
   @default_opts [
     ttl: 0,
-    namespace: nil
+    namespace: nil,
+    coder: {Memcache.Coder.Raw, []}
   ]
 
   @doc """
@@ -84,6 +95,10 @@ defmodule Memcache do
   * `:namespace` - (string) prepend each key with the given
     value.
 
+  * `:coder` - (module | {module, options}) Can be either a module or
+    tuple contains the module and options. Defaults to
+    `{Memcache.Coder.Raw, []}`.
+
   ## Options
 
   The second option is passed directly to the underlying
@@ -91,8 +106,9 @@ defmodule Memcache do
   """
   @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
   def start_link(connection_options \\ [], options \\ []) do
-    extra_opts = [:ttl, :namespace]
+    extra_opts = [:ttl, :namespace, :coder]
     connection_options = Keyword.merge(@default_opts, connection_options)
+    |> Keyword.update!(:coder, &normalize_coder/1)
     state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
     Agent.start_link(fn ->
       {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
@@ -407,21 +423,45 @@ defmodule Memcache do
   end
 
   ## Private
+  defp get_option(server, option) do
+    Agent.get(server, &(Map.get(&1, option)))
+  end
+
+  defp normalize_coder(spec) when is_tuple(spec), do: spec
+  defp normalize_coder(module) when is_atom(module), do: {module, []}
+
+  defp encode(server, value) do
+    coder = get_option(server, :coder)
+    apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
+  end
+
+  defp decode(server, value) do
+    coder = get_option(server, :coder)
+    apply(elem(coder, 0), :decode, [value, elem(coder, 1)])
+  end
+
+  defp decode_response({:ok, value}, server) when is_binary(value) do
+    {:ok, decode(server, value)}
+  end
+  defp decode_response({:ok, value, cas}, server) when is_binary(value) do
+    {:ok, decode(server, value), cas}
+  end
+  defp decode_response(rest, _server), do: rest
 
   defp connection(server) do
-    Agent.get(server, &(&1.connection))
+    get_option(server, :connection)
   end
 
   defp ttl_or_default(server, opts) do
     if Keyword.has_key?(opts, :ttl) do
       opts[:ttl]
     else
-      Agent.get(server, &(&1.ttl))
+      get_option(server, :ttl)
     end
   end
 
   defp key_with_namespace(server, key) do
-    namespace = Agent.get(server, &(&1.namespace))
+    namespace = get_option(server, :namespace)
     if namespace do
       "#{namespace}:#{key}"
     else
@@ -431,10 +471,12 @@ defmodule Memcache do
 
   defp execute_k(server, command, [key | rest], opts \\ []) do
     execute(server, command, [key_with_namespace(server, key) | rest], opts)
+    |> decode_response(server)
   end
 
   defp execute_kv(server, command, [key | [value | rest]], opts) do
-    execute(server, command, [key_with_namespace(server, key) | [value | rest]], opts)
+    execute(server, command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts)
+    |> decode_response(server)
   end
 
   defp execute(server, command, args, opts \\ []) do
