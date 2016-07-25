@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 25 July 2016
+
 ### New
 - coder
 
