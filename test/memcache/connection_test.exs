@@ -172,6 +172,23 @@ defmodule Memcache.ConnectionTest do
                        { :ok },
                        { :error, "Key not found" }] }},
 
+             { [{:SETQ, ["hello", "WORLD"]},
+                {:FLUSHQ, []},
+                {:GETQ, ["hello"]},
+                {:SETQ, ["hello", "world"]},
+                {:FLUSHQ, [0xFFFF]},
+                {:GETQ, ["hello"]},
+                {:FLUSHQ, []},
+                {:GETQ, ["hello"]}],
+               { :ok, [{ :ok },
+                       { :ok },
+                       { :error, "Key not found" },
+                       { :ok },
+                       { :ok },
+                       { :ok, "world" },
+                       { :ok },
+                       { :error, "Key not found" }] }},
+
              { [{:SETQ, ["hello", "world"]},
                 {:ADDQ, ["hello", "world"]},
                 {:ADDQ, ["add", "world"]},
@@ -234,7 +251,8 @@ defmodule Memcache.ConnectionTest do
                        { :ok, "new" },
                        { :ok }]}},
 
-             { [{:DELETEQ, ["new"]},
+             { [{:SETQ, ["new", "new "]},
+                {:DELETEQ, ["new"]},
                 {:APPENDQ, ["new", "hope"]},
                 {:SETQ, ["new", "new "]},
                 {:APPENDQ, ["new", "hope"]},
@@ -246,6 +264,7 @@ defmodule Memcache.ConnectionTest do
                 {:GETQ, ["new"]},
                 {:DELETEQ, ["new"]}],
                { :ok, [{ :ok },
+                       { :ok },
                        { :error, "Item not stored" },
                        { :ok },
                        { :ok },
@@ -256,7 +275,6 @@ defmodule Memcache.ConnectionTest do
                        { :ok },
                        { :ok, "new hope"},
                        { :ok }]}}
-
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->

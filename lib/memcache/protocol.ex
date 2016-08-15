@@ -15,6 +15,16 @@ defmodule Memcache.Protocol do
     ]
   end
 
+  def to_binary(:QUITQ, opaque) do
+    [
+      bcat([ request, opb(:QUITQ), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
+  end
+
   def to_binary(:NOOP, opaque) do
     [
       bcat([ request, opb(:NOOP), << 0x00 :: size(16) >>,
@@ -119,16 +129,6 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:FLUSH, opaque, 0) do
-    [
-      bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
-             << 0x00 >>, datatype, reserved,
-             << 0x00 :: size(32) >>]),
-      << opaque :: size(32) >>,
-      << 0x00 :: size(64) >>
-    ]
-  end
-
   def to_binary(:FLUSH, opaque, expiry) do
     [
       bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
@@ -139,6 +139,18 @@ defmodule Memcache.Protocol do
       << expiry :: size(32) >>
     ]
   end
+
+  def to_binary(:FLUSHQ, opaque, expiry) do
+    [
+      bcat([ request, opb(:FLUSHQ), << 0x00 :: size(16) >>,
+             << 0x04 >>, datatype, reserved,
+             << 0x04 :: size(32) >>]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      << expiry :: size(32) >>
+    ]
+  end
+
 
   def to_binary(:AUTH_START, opaque, key) do
     [
@@ -528,5 +540,7 @@ defmodule Memcache.Protocol do
   def quiet_response(:DECREMENTQ), do: { :ok }
   def quiet_response(:APPENDQ), do: { :ok }
   def quiet_response(:PREPENDQ), do: { :ok }
+  def quiet_response(:FLUSHQ), do: { :ok }
+  def quiet_response(:QUITQ), do: { :ok }
 
 end
