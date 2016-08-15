@@ -54,9 +54,6 @@ defmodule Memcache.BinaryUtils do
 
   defmacro defparse_empty(name) do
     quote do
-      def parse_body(%Header{ status: 0x0000, opcode: op(unquote(name)), opaque: 0x00 }, :empty) do
-        { :ok }
-      end
       def parse_body(%Header{ status: 0x0000, opcode: op(unquote(name)), opaque: opaque }, :empty) do
         { opaque, { :ok }}
       end
@@ -65,9 +62,6 @@ defmodule Memcache.BinaryUtils do
 
   defmacro defparse_error(code, error) do
     quote do
-      def parse_body(%Header{ status: unquote(code), opaque: 0x00 }, _rest) do
-        { :error, unquote(error) }
-      end
       def parse_body(%Header{ status: unquote(code), opaque: opaque }, _rest) do
         { opaque, { :error, unquote(error) }}
       end

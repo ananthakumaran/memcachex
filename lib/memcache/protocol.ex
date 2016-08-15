@@ -5,48 +5,123 @@ defmodule Memcache.Protocol do
   import Memcache.BinaryUtils
   alias Memcache.BinaryUtils.Header
 
-  def to_binary(:QUIT) do
-    bcat([ request, opb(:QUIT), << 0x00 :: size(16) >>,
-          << 0x00 >>, datatype, reserved,
-          << 0x00 :: size(32) >>, opaque,
-          << 0x00 :: size(64) >> ])
-  end
-
-  def to_binary(:NOOP) do
-    bcat([ request, opb(:NOOP), << 0x00 :: size(16) >>,
-          << 0x00 >>, datatype, reserved,
-          << 0x00 :: size(32) >>, opaque,
-          << 0x00 :: size(64) >> ])
-  end
-
-  def to_binary(:VERSION) do
-    bcat([ request, opb(:VERSION), << 0x00 :: size(16) >>,
-          << 0x00 >>, datatype, reserved,
-          << 0x00 :: size(32) >>, opaque,
-          << 0x00 :: size(64) >> ])
-  end
-
-  def to_binary(:STAT) do
-    bcat([ request, opb(:STAT), << 0x00 :: size(16) >>,
-          << 0x00 >>, datatype, reserved,
-          << 0x00 :: size(32) >>, opaque,
-          << 0x00 :: size(64) >> ])
-  end
-
-  def to_binary(:AUTH_LIST) do
-    bcat([ request, opb(:AUTH_LIST), << 0x00 :: size(16) >>,
-           << 0x00 >>, datatype, reserved,
-           << 0x00 :: size(32) >>, opaque,
-           << 0x00 :: size(64) >> ])
-  end
-
-  def to_binary(command) do
-    to_binary(command, 0)
+  def to_binary(:QUIT, opaque) do
+    [
+      bcat([ request, opb(:QUIT), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
   end
 
   def to_binary(:NOOP, opaque) do
     [
       bcat([ request, opb(:NOOP), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
+  end
+
+  def to_binary(:VERSION, opaque) do
+    [
+      bcat([ request, opb(:VERSION), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
+  end
+
+  def to_binary(:STAT, opaque) do
+    [
+      bcat([ request, opb(:STAT), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
+  end
+
+  def to_binary(:AUTH_LIST, opaque) do
+    [
+      bcat([ request, opb(:AUTH_LIST), << 0x00 :: size(16) >>,
+             << 0x00 >>, datatype, reserved,
+             << 0x00 :: size(32) >> ]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>
+    ]
+  end
+
+  def to_binary(command, opaque) do
+    to_binary(command, opaque, 0)
+  end
+
+  def to_binary(:STAT, opaque, key) do
+    [
+      bcat([ request, opb(:STAT)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      key
+    ]
+  end
+
+  def to_binary(:GET, opaque, key) do
+    [
+      bcat([ request, opb(:GET)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      key
+    ]
+  end
+
+  def to_binary(:GETQ, opaque, key) do
+    [
+      bcat([ request, opb(:GETQ)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      key
+    ]
+  end
+
+  def to_binary(:GETK, opaque, key) do
+    [
+      bcat([ request, opb(:GETK)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      key
+    ]
+  end
+
+  def to_binary(:GETKQ, opaque, key) do
+    [
+      bcat([ request, opb(:GETKQ)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
+      key
+    ]
+  end
+
+  def to_binary(:FLUSH, opaque, 0) do
+    [
+      bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
              << 0x00 >>, datatype, reserved,
              << 0x00 :: size(32) >>]),
       << opaque :: size(32) >>,
@@ -54,206 +129,142 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:STAT, key) do
-    [
-      bcat([ request, opb(:STAT)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) :: size(32) >>,
-      bcat([ opaque, << 0x00 :: size(64) >>]),
-      key
-    ]
-  end
-
-  def to_binary(:GET, key) do
-    [
-      bcat([ request, opb(:GET)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) :: size(32) >>,
-      bcat([ opaque, << 0x00 :: size(64) >>]),
-      key
-    ]
-  end
-
-  def to_binary(:GETK, key) do
-    [
-      bcat([ request, opb(:GETK)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) :: size(32) >>,
-      bcat([ opaque, << 0x00 :: size(64) >>]),
-      key
-    ]
-  end
-
-  def to_binary(:FLUSH, 0) do
-    bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
-          << 0x00 >>, datatype, reserved,
-          << 0x00 :: size(32) >>, opaque,
-          << 0x00 :: size(64) >>])
-  end
-
-  def to_binary(:FLUSH, expiry) do
+  def to_binary(:FLUSH, opaque, expiry) do
     [
       bcat([ request, opb(:FLUSH), << 0x00 :: size(16) >>,
              << 0x04 >>, datatype, reserved,
-             << 0x04 :: size(32) >>, opaque,
-             << 0x00 :: size(64) >> ]),
+             << 0x04 :: size(32) >>]),
+      << opaque :: size(32) >>,
+      << 0x00 :: size(64) >>,
       << expiry :: size(32) >>
     ]
   end
 
-  def to_binary(:AUTH_START, key) do
+  def to_binary(:AUTH_START, opaque, key) do
     [
       bcat([ request, opb(:AUTH_START)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, datatype, reserved]),
       << byte_size(key) :: size(32) >>,
-      opaque,
+      << opaque :: size(32) >>,
       << 0x00 :: size(64) >>,
       key
     ]
   end
 
-
-  def to_binary(command, key) do
-    to_binary(command, key, 0)
+  def to_binary(command, opaque, key) do
+    to_binary(command, opaque, key, 0)
   end
 
-  def to_binary(:AUTH_START, key, value) do
+  def to_binary(:AUTH_START, opaque, key, value) do
     [
       bcat([ request, opb(:AUTH_START)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, datatype, reserved]),
       << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
-      opaque,
+      << opaque :: size(32) >>,
       << 0x00 :: size(64) >>,
       key,
       value
     ]
   end
 
-
-  def to_binary(:GETQ, id, key) do
-    [
-      bcat([ request, opb(:GETQ)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) :: size(32) >>,
-      << id :: size(32) >>,
-      << 0x00 :: size(64) >>,
-      key
-    ]
-  end
-
-  def to_binary(:GETKQ, id, key) do
-    [
-      bcat([ request, opb(:GETKQ)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) :: size(32) >>,
-      << id :: size(32) >>,
-      << 0x00 :: size(64) >>,
-      key
-    ]
-  end
-
-  def to_binary(:DELETE, key, cas) do
+  def to_binary(:DELETE, opaque, key, cas) do
     [
       bcat([ request, opb(:DELETE)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
       << byte_size(key) :: size(32) >>,
-      opaque,
+      << opaque :: size(32) >>,
       << cas :: size(64) >> ,
       key
     ]
   end
 
-  def to_binary(:DELETEQ, id, key) do
+  def to_binary(:DELETEQ, opaque, key, cas) do
     [
       bcat([ request, opb(:DELETEQ)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
       << byte_size(key) :: size(32) >>,
-      << id :: size(32) >>,
-      << 0x00 :: size(64) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
       key
     ]
   end
 
-  def to_binary(command, key, value) do
-    to_binary(command, key, value, 0)
+  def to_binary(command, opaque, key, value) do
+    to_binary(command, opaque, key, value, 0)
   end
 
-  def to_binary(:APPEND, key, value, cas) do
+  def to_binary(:APPEND, opaque, key, value, cas) do
     [
       bcat([ request, opb(:APPEND)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, datatype, reserved]),
       << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
-      opaque,
+      << opaque :: size(32) >>,
       << cas :: size(64) >>,
       key,
       value
     ]
   end
 
-  def to_binary(:PREPEND, key, value, cas) do
-    [
-      bcat([ request, opb(:PREPEND)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x00 >>, datatype, reserved]),
-      << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
-      opaque,
-      << cas :: size(64) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:APPENDQ, id, key, value) do
+  def to_binary(:APPENDQ, opaque, key, value, cas) do
     [
       bcat([ request, opb(:APPENDQ)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, datatype, reserved]),
       << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
-      << id :: size(32) >>,
-      << 0x00 :: size(64) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
       key,
       value
     ]
   end
 
-  def to_binary(:PREPENDQ, id, key, value) do
+  def to_binary(:PREPEND, opaque, key, value, cas) do
+    [
+      bcat([ request, opb(:PREPEND)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x00 >>, datatype, reserved]),
+      << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:PREPENDQ, opaque, key, value, cas) do
     [
       bcat([ request, opb(:PREPENDQ)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x00 >>, datatype, reserved]),
       << byte_size(key) + IO.iodata_length(value) :: size(32) >>,
-      << id :: size(32) >>,
-      << 0x00 :: size(64) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
       key,
       value
     ]
   end
 
-  def to_binary(command, key, value, cas) do
-    to_binary(command, key, value, cas, 0, 0)
+  def to_binary(command, opaque, key, value, cas) do
+    to_binary(command, opaque, key, value, cas, 0)
   end
 
-  def to_binary(command, key, value, cas, flag) do
-    to_binary(command, key, value, cas, flag, 0)
+
+  def to_binary(command, opaque, key, value, cas, flag) do
+    to_binary(command, opaque, key, value, cas, flag, 0)
   end
 
-  def to_binary(:INCREMENT, key, delta, initial, cas, expiry) do
+  def to_binary(:INCREMENT, opaque, key, delta, initial, cas, expiry) do
     [
       bcat([ request, opb(:INCREMENT)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
       << byte_size(key) + 20 :: size(32) >>,
-      opaque,
+      << opaque :: size(32) >>,
       << cas :: size(64) >>,
       << delta :: size(64) >>,
       << initial :: size(64) >>,
@@ -262,122 +273,13 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:DECREMENT, key, delta, initial, cas, expiry) do
-    [
-      bcat([ request, opb(:DECREMENT)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 20 :: size(32) >>,
-      opaque,
-      << cas :: size(64) >>,
-      << delta :: size(64) >>,
-      << initial :: size(64) >>,
-      << expiry :: size(32) >>,
-      key
-    ]
-  end
-
-  def to_binary(:SET, key, value, cas, expiry, flag) do
-    [
-      bcat([ request, opb(:SET)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      opaque,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:ADD, key, value, expiry, cas, flag) do
-    [
-      bcat([ request, opb(:ADD)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      opaque,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:REPLACE, key, value, cas, expiry, flag) do
-    [
-      bcat([ request, opb(:REPLACE)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      opaque,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(command, id, key, value, cas, flag) do
-    to_binary(command, id, key, value, cas, flag, 0)
-  end
-
-  def to_binary(:SETQ, id, key, value, cas, flag, expiry) do
-    [
-      bcat([ request, opb(:SETQ)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      << id :: size(32) >>,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:ADDQ, id, key, value, cas, flag, expiry) do
-    [
-      bcat([ request, opb(:ADDQ)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      << id :: size(32) >>,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:REPLACEQ, id, key, value, cas, flag, expiry) do
-    [
-      bcat([ request, opb(:REPLACEQ)]),
-      << byte_size(key) :: size(16) >>,
-      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
-      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
-      << id :: size(32) >>,
-      << cas :: size(64) >>,
-      << flag :: size(32) >>,
-      << expiry :: size(32) >>,
-      key,
-      value
-    ]
-  end
-
-  def to_binary(:INCREMENTQ, id, key, delta, initial, cas, expiry) do
+  def to_binary(:INCREMENTQ, opaque, key, delta, initial, cas, expiry) do
     [
       bcat([ request, opb(:INCREMENTQ)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
       << byte_size(key) + 20 :: size(32) >>,
-      << id :: size(32) >>,
+      << opaque :: size(32) >>,
       << cas :: size(64) >>,
       << delta :: size(64) >>,
       << initial :: size(64) >>,
@@ -386,13 +288,28 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:DECREMENTQ, id, key, delta, initial, cas, expiry) do
+  def to_binary(:DECREMENT, opaque, key, delta, initial, cas, expiry) do
+    [
+      bcat([ request, opb(:DECREMENT)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 20 :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << delta :: size(64) >>,
+      << initial :: size(64) >>,
+      << expiry :: size(32) >>,
+      key
+    ]
+  end
+
+  def to_binary(:DECREMENTQ, opaque, key, delta, initial, cas, expiry) do
     [
       bcat([ request, opb(:DECREMENTQ)]),
       << byte_size(key) :: size(16) >>,
       bcat([<< 0x14 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
       << byte_size(key) + 20 :: size(32) >>,
-      << id :: size(32) >>,
+      << opaque :: size(32) >>,
       << cas :: size(64) >>,
       << delta :: size(64) >>,
       << initial :: size(64) >>,
@@ -401,6 +318,95 @@ defmodule Memcache.Protocol do
     ]
   end
 
+  def to_binary(:SET, opaque, key, value, cas, expiry, flag) do
+    [
+      bcat([ request, opb(:SET)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:SETQ, opaque, key, value, cas, flag, expiry) do
+    [
+      bcat([ request, opb(:SETQ)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:ADD, opaque, key, value, expiry, cas, flag) do
+    [
+      bcat([ request, opb(:ADD)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:ADDQ, opaque, key, value, cas, flag, expiry) do
+    [
+      bcat([ request, opb(:ADDQ)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:REPLACE, opaque, key, value, cas, expiry, flag) do
+    [
+      bcat([ request, opb(:REPLACE)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
+
+  def to_binary(:REPLACEQ, opaque, key, value, cas, flag, expiry) do
+    [
+      bcat([ request, opb(:REPLACEQ)]),
+      << byte_size(key) :: size(16) >>,
+      bcat([<< 0x08 >>, << 0x00 >>, << 0x0000 :: size(16) >>]),
+      << byte_size(key) + 8 + IO.iodata_length(value) :: size(32) >>,
+      << opaque :: size(32) >>,
+      << cas :: size(64) >>,
+      << flag :: size(32) >>,
+      << expiry :: size(32) >>,
+      key,
+      value
+    ]
+  end
 
   def parse_header(<<
                    0x81 :: size(8),
@@ -420,10 +426,10 @@ defmodule Memcache.Protocol do
     size
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:GET), extra_length: extra_length, total_body_length: total_body_length }, rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GET), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque }, rest) do
     value_size = (total_body_length - extra_length)
     << _extra :: binary-size(extra_length),  value :: binary-size(value_size) >> = rest
-    { :ok, value }
+    { opaque, { :ok, value } }
   end
 
   def parse_body(%Header{ status: 0x0000, opcode: op(:GETQ), extra_length: extra_length, total_body_length: total_body_length, opaque: opaque }, rest) do
@@ -432,10 +438,10 @@ defmodule Memcache.Protocol do
     { opaque, { :ok, value } }
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length }, rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:GETK), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length, opaque: opaque }, rest) do
     value_size = (total_body_length - extra_length - key_length)
     << _extra :: binary-size(extra_length), key :: binary-size(key_length), value :: binary-size(value_size) >> = rest
-    { :ok, key, value }
+    { opaque, { :ok, key, value } }
   end
 
   def parse_body(%Header{ status: 0x0000, opcode: op(:GETKQ), extra_length: extra_length, key_length: key_length, total_body_length: total_body_length, opaque: opaque }, rest) do
@@ -444,17 +450,17 @@ defmodule Memcache.Protocol do
     { opaque, { :ok, key, value }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:VERSION) }, rest) do
-    { :ok, rest }
+  def parse_body(%Header{ status: 0x0000, opcode: op(:VERSION), opaque: opaque }, rest) do
+    { opaque, { :ok, rest } }
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_LIST) }, rest) do
-    { :ok, rest }
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_LIST), opaque: opaque }, rest) do
+    { opaque, { :ok, rest }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENT) }, rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENT), opaque: opaque}, rest) do
     << value :: size(64) >> = rest
-    { :ok, value }
+    { opaque, { :ok, value }}
   end
 
   def parse_body(%Header{ status: 0x0000, opcode: op(:INCREMENTQ), opaque: opaque }, rest) do
@@ -462,9 +468,9 @@ defmodule Memcache.Protocol do
     { opaque, { :ok, value }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:DECREMENT) }, rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:DECREMENT), opaque: opaque }, rest) do
     << value :: size(64) >> = rest
-    { :ok, value }
+    { opaque, { :ok, value }}
   end
 
   def parse_body(%Header{ status: 0x0000, opcode: op(:DECREMENTQ), opaque: opaque }, rest) do
@@ -472,22 +478,22 @@ defmodule Memcache.Protocol do
     { opaque, { :ok, value }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_START)}, _rest) do
-    { :ok }
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_START), opaque: opaque}, _rest) do
+    { opaque, { :ok }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0 }, _rest) do
-    { :ok, :done }
+  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: 0, total_body_length: 0, opaque: opaque }, _rest) do
+    { opaque, { :ok, :done }}
   end
 
-  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: key_length, total_body_length: total_body_length }, rest) do
+  def parse_body(%Header{ status: 0x0000, opcode: op(:STAT), key_length: key_length, total_body_length: total_body_length, opaque: opaque }, rest) do
     value_size = (total_body_length - key_length)
     << key :: binary-size(key_length),  value :: binary-size(value_size) >> = rest
-    { :ok, key, value }
+    { opaque, { :ok, key, value } }
   end
 
-  def parse_body(%Header{ status: 0x0021 }, body) do
-    { :error, :auth_step, body }
+  def parse_body(%Header{ status: 0x0021, opaque: opaque }, body) do
+    { opaque, { :error, :auth_step, body } }
   end
 
   defparse_empty(:SET)
@@ -512,8 +518,8 @@ defmodule Memcache.Protocol do
   defparse_error(0x0081, "Unknown command")
   defparse_error(0x0082, "Out of memory")
 
-  def quiet_response(:GETQ), do: { :ok, "Key not found" }
-  def quiet_response(:GETKQ), do: { :ok, "Key not found" }
+  def quiet_response(:GETQ), do: { :error, "Key not found" }
+  def quiet_response(:GETKQ), do: { :error, "Key not found" }
   def quiet_response(:SETQ), do: { :ok }
   def quiet_response(:ADDQ), do: { :ok }
   def quiet_response(:DELETEQ), do: { :ok }

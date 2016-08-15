@@ -56,11 +56,11 @@ defmodule Memcache do
   @type error :: {:error, binary | atom}
   @type result ::
   {:ok} | {:ok, integer} |
-  {:ok, binary} | {:ok, binary, integer} |
+  {:ok, any} | {:ok, any, integer} |
   error
 
   @type fetch_result ::
-  {:ok, binary} | {:ok, binary, integer} |
+  {:ok, any} | {:ok, any, integer} |
   error
 
   @type fetch_integer_result ::
@@ -172,7 +172,7 @@ defmodule Memcache do
   function will go to step 1 and try again. Retry behavior can be
   disabled by passing `[retry: false]` option.
   """
-  @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: fetch_result
+  @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: {:ok, any} | error
   def cas(server, key, update, opts \\ []) do
     case get(server, key, [cas: true]) do
       { :ok, value, cas } ->

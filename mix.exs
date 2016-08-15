@@ -12,6 +12,7 @@ defmodule Memcache.Mixfile do
      description: "Memcached client",
      package: package(),
      docs: docs(),
+     dialyzer: [plt_add_deps: :transitive],
      deps: deps(Mix.env)]
   end
 

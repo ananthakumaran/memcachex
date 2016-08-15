@@ -2,12 +2,14 @@ defmodule Memcache.ConnectionTest do
   use ExUnit.Case, async: false
   import ExUnit.CaptureLog
   import TestUtils
-  alias Memcache.Connection
+  import Memcache.Connection
 
   doctest Connection
 
+  @cas_error { :error, "Key exists" }
+
   test "commands" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ hostname: "localhost" ])
     cases = [
              {:FLUSH, [], { :ok }},
              {:GET, ["unknown"], { :error, "Key not found" }},
@@ -66,22 +68,21 @@ defmodule Memcache.ConnectionTest do
             ]
 
     Enum.each(cases, fn ({ command, args, response }) ->
-      assert(Connection.execute(pid, command, args) == response)
+      assert(execute(pid, command, args) == response)
     end)
 
-    { :ok } = Connection.close(pid)
+    { :ok } = close(pid)
   end
 
   test "cas commands" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
-    cas_error = { :error, "Key exists" }
+    { :ok, pid } = start_link([ hostname: "localhost" ])
     cases = [
       {:FLUSH, [], [], { :ok }},
       {:GET, ["unknown"], [cas: true], { :error, "Key not found" }},
       {:SET, ["hello", "world"], [cas: true], { :ok, :cas }},
       {:SET, ["hello", "world", :cas], [cas: true], { :ok, :cas }},
       {:SET, ["hello", "another"], [], { :ok }},
-      {:SET, ["hello", "world", :cas], [cas: true], cas_error},
+      {:SET, ["hello", "world", :cas], [cas: true], @cas_error},
       {:GET, ["hello"], [cas: true], { :ok, "another", :cas }},
       {:SET, ["hello", "world", :cas], [cas: true], { :ok, :cas }},
       {:SET, ["hello", "move on"], [], { :ok }},
@@ -89,29 +90,29 @@ defmodule Memcache.ConnectionTest do
       {:ADD, ["add", "world"], [cas: true], { :ok, :cas }},
       {:DELETE, ["add", :cas], [], { :ok }},
       {:ADD, ["add", "world"], [], { :ok }},
-      {:DELETE, ["add", :cas], [], cas_error},
+      {:DELETE, ["add", :cas], [], @cas_error},
       {:REPLACE, ["add", "world"], [cas: true], { :ok, :cas }},
       {:REPLACE, ["add", "world", :cas], [], { :ok }},
-      {:REPLACE, ["add", "world", :cas], [], cas_error},
-      {:DELETE, ["add", :cas], [], cas_error},
+      {:REPLACE, ["add", "world", :cas], [], @cas_error},
+      {:DELETE, ["add", :cas], [], @cas_error},
       {:GET, ["add"], [cas: true], { :ok, "world", :cas }},
       {:DELETE, ["add", :cas], [], { :ok }},
       {:INCREMENT, ["count", 1, 5], [cas: true], { :ok, 5, :cas }},
       {:INCREMENT, ["count", 1, 5], [], { :ok, 6 }},
-      {:INCREMENT, ["count", 5, 1, :cas], [], cas_error},
+      {:INCREMENT, ["count", 5, 1, :cas], [], @cas_error},
       {:DELETE, ["count"], [], { :ok }},
       {:DECREMENT, ["count", 1, 5], [cas: true], { :ok, 5, :cas }},
       {:DECREMENT, ["count", 1, 5, :cas], [], { :ok, 4 }},
-      {:DECREMENT, ["count", 6, 5, :cas], [], cas_error},
+      {:DECREMENT, ["count", 6, 5, :cas], [], @cas_error},
       {:DELETE, ["count"], [], { :ok }},
       {:SET, ["new", "new "], [cas: true], { :ok, :cas }},
       {:APPEND, ["new", "hope", :cas], [], { :ok }},
-      {:APPEND, ["new", "hope", :cas], [], cas_error},
+      {:APPEND, ["new", "hope", :cas], [], @cas_error},
       {:APPEND, ["new", "hope"], [cas: true], { :ok, :cas }},
       {:GET, ["new"], [], { :ok, "new hopehope"}},
       {:SET, ["new", "hope"], [cas: true], { :ok, :cas }},
       {:PREPEND, ["new", "new ", :cas], [], { :ok }},
-      {:PREPEND, ["new", "new ", :cas], [], cas_error},
+      {:PREPEND, ["new", "new ", :cas], [], @cas_error},
       {:PREPEND, ["new", "new "], [cas: true], { :ok, :cas }},
       {:FLUSH, [], [], { :ok }},
     ]
@@ -123,30 +124,30 @@ defmodule Memcache.ConnectionTest do
       args = Enum.map(args, embed_cas)
       case response do
         { :ok, :cas } ->
-          assert { :ok, cas } = Connection.execute(pid, command, args, opts)
+          assert { :ok, cas } = execute(pid, command, args, opts)
           cas
         { :ok, value, :cas } ->
-          assert { :ok, ^value, cas } = Connection.execute(pid, command, args, opts)
+          assert { :ok, ^value, cas } = execute(pid, command, args, opts)
           cas
         rest ->
-          assert rest == Connection.execute(pid, command, args, opts)
+          assert rest == execute(pid, command, args, opts)
           cas
       end
     end)
 
-    { :ok } = Connection.close(pid)
+    { :ok } = close(pid)
   end
 
 
   test "quiet commands" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
-    { :ok } = Connection.execute(pid, :FLUSH, [])
-    { :ok } = Connection.execute(pid, :SET, ["new", "hope"])
+    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok } = execute(pid, :FLUSH, [])
+    { :ok } = execute(pid, :SET, ["new", "hope"])
     cases = [
              { [{:GETQ, ["hello"]},
                 {:GETQ, ["hello"]}],
-               { :ok, [{ :ok, "Key not found" },
-                       { :ok, "Key not found" }] }},
+               { :ok, [{ :error, "Key not found" },
+                       { :error, "Key not found" }] }},
 
              { [{:GETQ, ["new"]},
                 {:GETQ, ["new"]}],
@@ -156,7 +157,7 @@ defmodule Memcache.ConnectionTest do
              { [{:GETKQ, ["new"]},
                 {:GETKQ, ["unknown"]}],
                { :ok, [{ :ok, "new", "hope" },
-                       { :ok, "Key not found" }] }},
+                       { :error, "Key not found" }] }},
 
              { [{:SETQ, ["hello", "WORLD"]},
                 {:GETQ, ["hello"]},
@@ -169,7 +170,7 @@ defmodule Memcache.ConnectionTest do
                        { :ok },
                        { :ok, "world" },
                        { :ok },
-                       { :ok, "Key not found" }] }},
+                       { :error, "Key not found" }] }},
 
              { [{:SETQ, ["hello", "world"]},
                 {:ADDQ, ["hello", "world"]},
@@ -259,60 +260,193 @@ defmodule Memcache.ConnectionTest do
             ]
 
     Enum.each(cases, fn ({ commands, response }) ->
-      assert(Connection.execute_quiet(pid, commands) == response)
+      assert(execute_quiet(pid, commands) == response)
     end)
 
-    { :ok } = Connection.close(pid)
+    { :ok } = close(pid)
   end
 
+  test "quiet cas commands" do
+    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok } = execute(pid, :FLUSH, [])
+    { :ok } = execute(pid, :SET, ["new", "hope"])
+
+    assert { :ok, [{ :ok, "hope", cas},
+                   { :ok, "hope", cas}] } =
+      execute_quiet(pid, [{:GETQ, ["new"], [cas: true]},
+                          {:GETQ, ["new"], [cas: true]}])
+
+
+    assert { :ok, [{ :ok, cas},
+                   @cas_error] } =
+      execute_quiet(pid, [{:SET, ["new", "hope", cas], [cas: true]},
+                          {:SETQ, ["new", "hope", cas]}])
+
+
+    assert { :ok, [@cas_error,
+                   { :ok },
+                   { :error, "Key not found" },
+                   { :ok },
+                   {:ok, "hope", cas}]} =
+      execute_quiet(pid, [{:DELETEQ, ["new", 1492]},
+                          {:DELETEQ, ["new", cas]},
+                          {:GETQ, ["new"]},
+                          {:SETQ, ["new", "hope"]},
+                          {:GETQ, ["new"], [cas: true]}])
+
+
+    assert { :ok, [{ :ok },
+                   { :error, "Key exists" },
+                   { :ok, _cas},
+                   { :ok }] } =
+      execute_quiet(pid, [{:SETQ, ["new", "world", cas]},
+                          {:ADDQ, ["new", "world"]},
+                          {:ADD, ["add", "world"], [cas: true]},
+                          {:DELETEQ, ["add"]}])
+
+
+    assert { :ok, [{ :ok },
+                   { :ok, 6, cas}]} =
+      execute_quiet(pid, [{:INCREMENTQ, ["count", 1, 5]},
+                          {:INCREMENT, ["count", 1, 5], [cas: true]}])
+
+    assert { :ok, [{ :ok },
+                   { :ok, "7" },
+                   @cas_error,
+                   { :ok, "7" },
+                   { :ok },
+                   { :ok, "12" },
+                   { :ok }]} =
+      execute_quiet(pid, [{:INCREMENTQ, ["count", 1, 5, cas]},
+                          {:GETQ, ["count"]},
+                          {:INCREMENTQ, ["count", 1, 5, cas]},
+                          {:GETQ, ["count"]},
+                          {:INCREMENTQ, ["count", 5]},
+                          {:GETQ, ["count"]},
+                          {:DELETEQ, ["count"]}])
+
+    assert { :ok, [{ :ok },
+                   { :ok, 4, cas}]} =
+      execute_quiet(pid, [{:DECREMENTQ, ["count", 1, 5]},
+                          {:DECREMENT, ["count", 1, 5], [cas: true]}])
+
+
+    assert { :ok, [{ :ok },
+                   { :ok, "3" },
+                   @cas_error,
+                   { :ok, "3" },
+                   { :ok },
+                   { :ok , "0"},
+                   { :ok }]} ==
+      execute_quiet(pid, [{:DECREMENTQ, ["count", 1, 5, cas]},
+                          {:GETQ, ["count"]},
+                          {:DECREMENTQ, ["count", 1, 5, cas]},
+                          {:GETQ, ["count"]},
+                          {:DECREMENTQ, ["count", 5]},
+                          {:GETQ, ["count"]},
+                          {:DELETEQ, ["count"]}])
+
+    assert { :ok, [{ :error, "Key not found" },
+                   { :ok },
+                   { :ok, cas}]} =
+      execute_quiet(pid, [{:REPLACEQ, ["add", "world"]},
+                          {:ADDQ, ["add", "world"]},
+                          {:REPLACE, ["add", "world"], [cas: true]}])
+
+
+    assert { :ok, [{ :ok },
+                   { :ok, "world" },
+                   @cas_error,
+                   { :ok, "world" },
+                   { :ok }]} ==
+      execute_quiet(pid, [{:REPLACEQ, ["add", "world", cas]},
+                          {:GETQ, ["add"]},
+                          {:REPLACEQ, ["add", "new", cas]},
+                          {:GETQ, ["add"]},
+                          {:DELETEQ, ["add"]}])
+
+    assert { :ok, [{ :ok },
+                   { :ok, casa},
+                   { :ok },
+                   { :ok, casp}]} =
+      execute_quiet(pid, [{:SETQ, ["a", "new"]},
+                          {:APPEND, ["a", " "], [cas: true]},
+                          {:SETQ, ["p", "hope"]},
+                          {:PREPEND, ["p", " "], [cas: true]}])
+
+    assert { :ok, [{ :ok },
+                   { :ok, "new hope"},
+                   @cas_error,
+                   { :ok, "new hope"},
+                   { :ok },
+                   { :ok, "new hope"},
+                   @cas_error,
+                   { :ok, "new hope"},
+                   { :ok },
+                   { :ok }]} ==
+      execute_quiet(pid, [{:APPENDQ, ["a", "hope", casa]},
+                          {:GETQ, ["a"]},
+                          {:APPENDQ, ["a", "hope", casa]},
+                          {:GETQ, ["a"]},
+                          {:PREPENDQ, ["p", "new", casp]},
+                          {:GETQ, ["p"]},
+                          {:PREPENDQ, ["p", "new", casp]},
+                          {:GETQ, ["p"]},
+                          {:DELETEQ, ["a"]},
+                          {:DELETEQ, ["p"]}])
+
+    { :ok } = close(pid)
+  end
+
+
   test "misc commands" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
-    { :ok, _stat } = Connection.execute(pid, :STAT, [])
-    { :ok, _stat } = Connection.execute(pid, :STAT, ["items"])
-    { :ok, _stat } = Connection.execute(pid, :STAT, ["slabs"])
-    { :ok, _stat } = Connection.execute(pid, :STAT, ["settings"])
-    { :ok, version } = Connection.execute(pid, :VERSION, [])
+    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, _stat } = execute(pid, :STAT, [])
+    { :ok, _stat } = execute(pid, :STAT, ["items"])
+    { :ok, _stat } = execute(pid, :STAT, ["slabs"])
+    { :ok, _stat } = execute(pid, :STAT, ["settings"])
+    { :ok, version } = execute(pid, :VERSION, [])
     assert  version =~ ~r/\d+\.\d+\.\d+/
-    { :ok } = Connection.close(pid)
+    { :ok } = close(pid)
   end
 
   test "named process" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ], [name: :memcachex])
-    { :ok } = Connection.execute(:memcachex, :SET, ["hello", "world"])
-    { :ok, "world" } = Connection.execute(:memcachex, :GET, ["hello"])
-    { :ok } = Connection.close(pid)
+    { :ok, pid } = start_link([ hostname: "localhost" ], [name: :memcachex])
+    { :ok } = execute(:memcachex, :SET, ["hello", "world"])
+    { :ok, "world" } = execute(:memcachex, :GET, ["hello"])
+    { :ok } = close(pid)
   end
 
   test "continue if auth is not supported" do
     assert capture_log(fn ->
-      { :ok, pid } = Connection.start_link([auth: {:plain, "user", "pass"}])
+      { :ok, pid } = start_link([auth: {:plain, "user", "pass"}])
       :timer.sleep(100)
-      { :ok } = Connection.close(pid)
+      { :ok } = close(pid)
     end) =~ "Authentication not required"
   end
 
   @tag :authentication
   test "fail on unsupported auth type" do
     assert_exit(fn ->
-      { :ok, pid } = Connection.start_link([port: 9494, auth: {:ldap, "user", "pass"}])
+      { :ok, pid } = start_link([port: 9494, auth: {:ldap, "user", "pass"}])
       :timer.sleep(100)
-      { :ok } = Connection.close(pid)
+      { :ok } = close(pid)
     end, ~r/only supports :plain/)
   end
 
   @tag :authentication
   test "plain auth" do
-    { :ok, pid } = Connection.start_link([port: 9494, auth: {:plain, "user", "pass"}])
-    { :ok } = Connection.execute(pid, :NOOP, [])
-    { :ok } = Connection.close(pid)
+    { :ok, pid } = start_link([port: 9494, auth: {:plain, "user", "pass"}])
+    { :ok } = execute(pid, :NOOP, [])
+    { :ok } = close(pid)
   end
 
   @tag :authentication
   test "invalid password" do
     assert_exit(fn ->
-      { :ok, pid } = Connection.start_link([port: 9494, auth: {:plain, "user", "ps"}])
+      { :ok, pid } = start_link([port: 9494, auth: {:plain, "user", "ps"}])
       :timer.sleep(100)
-      { :ok } = Connection.close(pid)
+      { :ok } = close(pid)
     end, ~r/auth.*not.*successful/i)
   end
 end
