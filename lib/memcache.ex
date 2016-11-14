@@ -116,6 +116,21 @@ defmodule Memcache do
     end, options)
   end
 
+  require Logger
+  def start(_type, _args) do
+    pool_args = [name: {:local, Memcache.Connection.Pool},
+                 worker_module: Memcache.Connection,
+                 size: 5,
+                 max_overflow: 5]
+
+    poolboy_sup = :poolboy.child_spec(Memcache.Connection.Pool.Supervisor,
+                                     pool_args, @default_opts)
+    children = [poolboy_sup]
+    opts = [strategy: :one_for_one, name: Memcache.Connection.Supervisor]
+
+    Supervisor.start_link(children, opts)
+  end
+
   @doc """
   Closes the connection to the memcached server.
   """
