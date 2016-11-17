@@ -1,6 +1,5 @@
 defmodule MemcacheTest do
   use ExUnit.Case
-  require IEx
 
   doctest Memcache
 
@@ -9,8 +8,6 @@ defmodule MemcacheTest do
     Application.put_env(:memcachex, :namespace, nil)
     Application.put_env(:memcachex, :ttl, 0)
     Application.put_env(:memcachex, :coder, {Memcache.Coder.Raw, []})
-    # IEx.pry
-    :ok
   end
 
   def append_prepend do
