@@ -14,7 +14,7 @@ defmodule Memcache do
 
   `Memcache.Coder` allows you to specify how the value should be encoded before
   sending it to the server and how it should be decoded after it is
-  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
+  retrieved. There are four built-in coders namely `Memcache.Coder.Raw`,
   `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
   `Memcache.Coder.ZIP`. Custom coders can be created by implementing
   the `Memcache.Coder` behaviour.
@@ -77,7 +77,9 @@ defmodule Memcache do
   @default_opts [
     ttl: 0,
     namespace: nil,
-    coder: {Memcache.Coder.Raw, []}
+    coder: {Memcache.Coder.Raw, []},
+    pool_size: 10,
+    pool_max_overflow: 20
   ]
 
   @doc """
@@ -105,26 +107,18 @@ defmodule Memcache do
   The second option is passed directly to the underlying
   `GenServer.start_link/3`, so it can be used to create named process.
   """
-  @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
-  def start_link(connection_options \\ [], options \\ []) do
-    extra_opts = [:ttl, :namespace, :coder]
-    connection_options = Keyword.merge(@default_opts, connection_options)
-    |> Keyword.update!(:coder, &normalize_coder/1)
-    state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
-    Agent.start_link(fn ->
-      {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
-      Map.put(state, :connection, pid)
-    end, options)
-  end
-
   def start(_type, _args) do
-    pool_args = [name: {:local, Memcache.Connection.Pool},
-                 worker_module: Memcache.Connection,
-                 size: 5,
-                 max_overflow: 5]
+    extra_opts = [:ttl, :namespace, :coder, :pool_size, :pool_max_overflow]
+    connection_options = Keyword.drop(Application.get_all_env(:memcachex), extra_opts)
+    pool_args = [
+      name: {:local, Memcache.Connection.Pool},
+      worker_module: Memcache.Connection,
+      size: Application.get_env(:memcachex, :pool_size, @default_opts[:pool_size]),
+      max_overflow: Application.get_env(:memcachex, :pool_max_overflow, @default_opts[:pool_max_overflow])
+    ]
 
     poolboy_sup = :poolboy.child_spec(Memcache.Connection.Pool.Supervisor,
-                                     pool_args, @default_opts)
+                                     pool_args, connection_options)
     children = [poolboy_sup]
     opts = [strategy: :one_for_one, name: Memcache.Connection.Supervisor]
 
@@ -132,14 +126,14 @@ defmodule Memcache do
   end
 
   @doc """
-  Closes the connection to the memcached server.
+  Closes the actual connections to the memcached server.
+
+  Supervisor will reopen new ones.
   """
-  # @spec stop :: {:ok}
-  # def stop do
-  #   result = Connection.close(connection(server))
-  #   :ok = Agent.stop(server)
-  #   result
-  # end
+  @spec stop :: {:ok}
+  def stop do
+    :poolboy.stop(Memcache.Connection.Pool)
+  end
 
   @doc """
   Gets the value associated with the key. Returns `{:error, "Key not
@@ -439,7 +433,7 @@ defmodule Memcache do
 
   ## Private
   defp get_option(option) do
-    Keyword.get(@default_opts, option)
+    Application.get_env(:memcachex, option, @default_opts[option])
   end
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
