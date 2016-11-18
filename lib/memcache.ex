@@ -14,7 +14,7 @@ defmodule Memcache do
 
   `Memcache.Coder` allows you to specify how the value should be encoded before
   sending it to the server and how it should be decoded after it is
-  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
+  retrieved. There are four built-in coders namely `Memcache.Coder.Raw`,
   `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
   `Memcache.Coder.ZIP`. Custom coders can be created by implementing
   the `Memcache.Coder` behaviour.
@@ -52,6 +52,7 @@ defmodule Memcache do
     expiration. The Default value can be configured using
     `start_link/2`.
   """
+  require Logger
 
   @type error :: {:error, binary | atom}
   @type result ::
@@ -76,7 +77,9 @@ defmodule Memcache do
   @default_opts [
     ttl: 0,
     namespace: nil,
-    coder: {Memcache.Coder.Raw, []}
+    coder: {Memcache.Coder.Raw, []},
+    pool_size: 10,
+    pool_max_overflow: 20
   ]
 
   @doc """
@@ -104,26 +107,32 @@ defmodule Memcache do
   The second option is passed directly to the underlying
   `GenServer.start_link/3`, so it can be used to create named process.
   """
-  @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
-  def start_link(connection_options \\ [], options \\ []) do
-    extra_opts = [:ttl, :namespace, :coder]
-    connection_options = Keyword.merge(@default_opts, connection_options)
-    |> Keyword.update!(:coder, &normalize_coder/1)
-    state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
-    Agent.start_link(fn ->
-      {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
-      Map.put(state, :connection, pid)
-    end, options)
+  def start(_type, _args) do
+    extra_opts = [:ttl, :namespace, :coder, :pool_size, :pool_max_overflow]
+    connection_options = Keyword.drop(Application.get_all_env(:memcachex), extra_opts)
+    pool_args = [
+      name: {:local, Memcache.Connection.Pool},
+      worker_module: Memcache.Connection,
+      size: Application.get_env(:memcachex, :pool_size, @default_opts[:pool_size]),
+      max_overflow: Application.get_env(:memcachex, :pool_max_overflow, @default_opts[:pool_max_overflow])
+    ]
+
+    poolboy_sup = :poolboy.child_spec(Memcache.Connection.Pool.Supervisor,
+                                     pool_args, connection_options)
+    children = [poolboy_sup]
+    opts = [strategy: :one_for_one, name: Memcache.Connection.Supervisor]
+
+    Supervisor.start_link(children, opts)
   end
 
   @doc """
-  Closes the connection to the memcached server.
+  Closes the actual connections to the memcached server.
+
+  Supervisor will reopen new ones.
   """
-  @spec stop(GenServer.server) :: {:ok}
-  def stop(server) do
-    result = Connection.close(connection(server))
-    :ok = Agent.stop(server)
-    result
+  @spec stop :: {:ok}
+  def stop do
+    :poolboy.stop(Memcache.Connection.Pool)
   end
 
   @doc """
@@ -132,9 +141,9 @@ defmodule Memcache do
 
   Accepted option: `:cas`
   """
-  @spec get(GenServer.server, binary, Keyword.t) :: fetch_result
-  def get(server, key, opts \\ []) do
-    execute_k(server, :GET, [key], opts)
+  @spec get(binary, Keyword.t) :: fetch_result
+  def get(key, opts \\ []) do
+    execute_k(:GET, [key], opts)
   end
 
   @doc """
@@ -142,9 +151,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec set(GenServer.server, binary, binary, Keyword.t) :: store_result
-  def set(server, key, value, opts \\ []) do
-    set_cas(server, key, value, 0, opts)
+  @spec set(binary, binary, Keyword.t) :: store_result
+  def set(key, value, opts \\ []) do
+    set_cas(key, value, 0, opts)
   end
 
   @doc """
@@ -153,9 +162,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-  def set_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :SET, [key, value, cas, ttl_or_default(server, opts)], opts)
+  @spec set_cas(binary, binary, integer, Keyword.t) :: store_result
+  def set_cas(key, value, cas, opts \\ []) do
+    execute_kv(:SET, [key, value, cas, ttl_or_default(opts)], opts)
   end
 
   @cas_error { :error, "Key exists" }
@@ -172,15 +181,15 @@ defmodule Memcache do
   function will go to step 1 and try again. Retry behavior can be
   disabled by passing `[retry: false]` option.
   """
-  @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: {:ok, any} | error
-  def cas(server, key, update, opts \\ []) do
-    case get(server, key, [cas: true]) do
+  @spec cas(binary, (binary -> binary), Keyword.t) :: {:ok, any} | error
+  def cas(key, update, opts \\ []) do
+    case get(key, [cas: true]) do
       { :ok, value, cas } ->
         new_value = update.(value)
-        case set_cas(server, key, new_value, cas) do
+        case set_cas(key, new_value, cas) do
           @cas_error ->
             if Keyword.get(opts, :retry, true) do
-              cas(server, key, update)
+              cas(key, update)
             else
               @cas_error
             end
@@ -197,9 +206,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec add(GenServer.server, binary, binary, Keyword.t) :: store_result
-  def add(server, key, value, opts \\ []) do
-    execute_kv(server, :ADD, [key, value, ttl_or_default(server, opts)], opts)
+  @spec add(binary, binary, Keyword.t) :: store_result
+  def add(key, value, opts \\ []) do
+    execute_kv(:ADD, [key, value, ttl_or_default(opts)], opts)
   end
 
   @doc """
@@ -208,9 +217,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec replace(GenServer.server, binary, binary, Keyword.t) :: store_result
-  def replace(server, key, value, opts \\ []) do
-    replace_cas(server, key, value, 0, opts)
+  @spec replace(binary, binary, Keyword.t) :: store_result
+  def replace(key, value, opts \\ []) do
+    replace_cas(key, value, 0, opts)
   end
 
   @doc """
@@ -219,27 +228,27 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec replace_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-  def replace_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :REPLACE, [key, value, cas, ttl_or_default(server, opts)], opts)
+  @spec replace_cas(binary, binary, integer, Keyword.t) :: store_result
+  def replace_cas(key, value, cas, opts \\ []) do
+    execute_kv(:REPLACE, [key, value, cas, ttl_or_default(opts)], opts)
   end
 
   @doc """
   Removes the item with the given key value. Returns `{ :error, "Key
   not found" }` if the given key is not found
   """
-  @spec delete(GenServer.server, binary) :: store_result
-  def delete(server, key) do
-    execute_k(server, :DELETE, [key])
+  @spec delete(binary) :: store_result
+  def delete(key) do
+    execute_k(:DELETE, [key])
   end
 
   @doc """
   Removes the item with the given key value if the CAS value is equal
   to the provided value
   """
-  @spec delete_cas(GenServer.server, binary, integer) :: store_result
-  def delete_cas(server, key, cas) do
-    execute_k(server, :DELETE, [key, cas])
+  @spec delete_cas(binary, integer) :: store_result
+  def delete_cas(key, cas) do
+    execute_k(:DELETE, [key, cas])
   end
 
   @doc """
@@ -248,9 +257,9 @@ defmodule Memcache do
 
   Accepted options: `:ttl`
   """
-  @spec flush(GenServer.server, Keyword.t) :: store_result
-  def flush(server, opts \\ []) do
-    execute(server, :FLUSH, [Keyword.get(opts, :ttl, 0)])
+  @spec flush(Keyword.t) :: store_result
+  def flush(opts \\ []) do
+    execute(:FLUSH, [Keyword.get(opts, :ttl, 0)])
   end
 
   @doc """
@@ -260,9 +269,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec append(GenServer.server, binary, binary, Keyword.t) :: store_result
-  def append(server, key, value, opts \\ []) do
-    execute_kv(server, :APPEND, [key, value], opts)
+  @spec append(binary, binary, Keyword.t) :: store_result
+  def append(key, value, opts \\ []) do
+    execute_kv(:APPEND, [key, value], opts)
   end
 
   @doc """
@@ -271,9 +280,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec append_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-  def append_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :APPEND, [key, value, cas], opts)
+  @spec append_cas(binary, binary, integer, Keyword.t) :: store_result
+  def append_cas(key, value, cas, opts \\ []) do
+    execute_kv(:APPEND, [key, value, cas], opts)
   end
 
   @doc """
@@ -283,9 +292,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec prepend(GenServer.server, binary, binary, Keyword.t) :: store_result
-  def prepend(server, key, value, opts \\ []) do
-    execute_kv(server, :PREPEND, [key, value], opts)
+  @spec prepend(binary, binary, Keyword.t) :: store_result
+  def prepend(key, value, opts \\ []) do
+    execute_kv(:PREPEND, [key, value], opts)
   end
 
   @doc """
@@ -294,9 +303,9 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec prepend_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-  def prepend_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :PREPEND, [key, value, cas], opts)
+  @spec prepend_cas(binary, binary, integer, Keyword.t) :: store_result
+  def prepend_cas(key, value, cas, opts \\ []) do
+    execute_kv(:PREPEND, [key, value, cas], opts)
   end
 
   @doc """
@@ -314,9 +323,9 @@ defmodule Memcache do
 
   other options: `:cas`, `:ttl`
   """
-  @spec incr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
-  def incr(server, key, opts \\ []) do
-    incr_cas(server, key, 0, opts)
+  @spec incr(binary, Keyword.t) :: fetch_integer_result
+  def incr(key, opts \\ []) do
+    incr_cas(key, 0, opts)
   end
 
   @doc """
@@ -333,11 +342,11 @@ defmodule Memcache do
 
   other options: `:cas`, `:ttl`
   """
-  @spec incr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
-  def incr_cas(server, key, cas, opts \\ []) do
+  @spec incr_cas(binary, integer, Keyword.t) :: fetch_integer_result
+  def incr_cas(key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute_k(server, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server, opts)], opts)
+    execute_k(:INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(opts)], opts)
   end
 
   @doc """
@@ -355,9 +364,9 @@ defmodule Memcache do
 
   other options: `:cas`, `:ttl`
   """
-  @spec decr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
-  def decr(server, key, opts \\ []) do
-    decr_cas(server, key, 0, opts)
+  @spec decr(binary, Keyword.t) :: fetch_integer_result
+  def decr(key, opts \\ []) do
+    decr_cas(key, 0, opts)
   end
 
   @doc """
@@ -374,94 +383,90 @@ defmodule Memcache do
 
   other options: `:cas`, `:ttl`
   """
-  @spec decr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
-  def decr_cas(server, key, cas, opts \\ []) do
+  @spec decr_cas(binary, integer, Keyword.t) :: fetch_integer_result
+  def decr_cas(key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute_k(server, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server, opts)], opts)
+    execute_k(:DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(opts)], opts)
   end
 
   @doc """
   Gets the default set of server statistics
   """
-  @spec stat(GenServer.server) :: HashDict.t | error
-  def stat(server) do
-    execute(server, :STAT, [])
+  @spec stat :: HashDict.t | error
+  def stat do
+    execute(:STAT, [])
   end
 
   @doc """
   Gets the specific set of server statistics
   """
-  @spec stat(GenServer.server, String.t) :: HashDict.t | error
-  def stat(server, key) do
-    execute(server, :STAT, [key])
+  @spec stat(String.t) :: HashDict.t | error
+  def stat(key) do
+    execute(:STAT, [key])
   end
 
   @doc """
   Gets the version of the server
   """
-  @spec version(GenServer.server) :: String.t | error
-  def version(server) do
-    execute(server, :VERSION, [])
+  @spec version :: String.t | error
+  def version do
+    execute(:VERSION, [])
   end
 
   @doc """
   Sends a noop command
   """
-  @spec noop(GenServer.server) :: {:ok} | error
-  def noop(server) do
-    execute(server, :NOOP, [])
+  @spec noop :: {:ok} | error
+  def noop do
+    execute(:NOOP, [])
   end
 
   @doc """
   Gets the pid of the `Memcache.Connection` process. Can be used to
   call functions in `Memcache.Connection`
   """
-  @spec connection_pid(GenServer.server) :: pid
-  def connection_pid(server) do
-    connection(server)
-  end
+  # @spec connection_pid(GenServer.server) :: pid
+  # def connection_pid(server) do
+  #   connection(server)
+  # end
 
   ## Private
-  defp get_option(server, option) do
-    Agent.get(server, &(Map.get(&1, option)))
+  defp get_option(option) do
+    Application.get_env(:memcachex, option, @default_opts[option])
   end
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
   defp normalize_coder(module) when is_atom(module), do: {module, []}
 
-  defp encode(server, value) do
-    coder = get_option(server, :coder)
+  defp encode(value) do
+    coder = get_option(:coder)
     apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
   end
 
-  defp decode(server, value) do
-    coder = get_option(server, :coder)
+  defp decode(value) do
+    coder = get_option(:coder)
     apply(elem(coder, 0), :decode, [value, elem(coder, 1)])
   end
 
-  defp decode_response({:ok, value}, server) when is_binary(value) do
-    {:ok, decode(server, value)}
+  defp decode_response({:ok, value}) when is_binary(value) do
+    {:ok, decode(value)}
   end
-  defp decode_response({:ok, value, cas}, server) when is_binary(value) do
-    {:ok, decode(server, value), cas}
+  defp decode_response({:ok, value, cas}) when is_binary(value) do
+    {:ok, decode(value), cas}
   end
-  defp decode_response(rest, _server), do: rest
+  defp decode_response(rest), do: rest
 
-  defp connection(server) do
-    get_option(server, :connection)
-  end
-
-  defp ttl_or_default(server, opts) do
+  defp ttl_or_default(opts) do
     if Keyword.has_key?(opts, :ttl) do
       opts[:ttl]
     else
-      get_option(server, :ttl)
+      get_option(:ttl)
     end
   end
 
-  defp key_with_namespace(server, key) do
-    namespace = get_option(server, :namespace)
+  defp key_with_namespace(key) do
+    namespace = get_option(:namespace)
     if namespace do
       "#{namespace}:#{key}"
     else
@@ -469,17 +474,19 @@ defmodule Memcache do
     end
   end
 
-  defp execute_k(server, command, [key | rest], opts \\ []) do
-    execute(server, command, [key_with_namespace(server, key) | rest], opts)
-    |> decode_response(server)
+  defp execute_k(command, [key | rest], opts \\ []) do
+    execute(command, [key_with_namespace(key) | rest], opts)
+    |> decode_response
   end
 
-  defp execute_kv(server, command, [key | [value | rest]], opts) do
-    execute(server, command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts)
-    |> decode_response(server)
+  defp execute_kv(command, [key | [value | rest]], opts) do
+    execute(command, [key_with_namespace(key) | [encode(value) | rest]], opts)
+    |> decode_response
   end
 
-  defp execute(server, command, args, opts \\ []) do
-    Connection.execute(connection(server), command, args, opts)
+  defp execute(command, args, opts \\ []) do
+    :poolboy.transaction(Memcache.Connection.Pool, fn(pid) ->
+      Memcache.Connection.execute(pid, command, args, opts)
+    end)
   end
 end
