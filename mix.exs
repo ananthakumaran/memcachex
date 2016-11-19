@@ -30,7 +30,8 @@ defmodule Memcache.Mixfile do
   def deps(_), do: deps()
   def deps() do
     [{:connection, "~> 1.0.3"},
-     {:poison, "~> 1.5 or ~> 2.0", optional: true}]
+     {:poison, "~> 1.5 or ~> 2.0", optional: true},
+     {:poolboy, "~> 1.5"}]
   end
 
   defp package do
