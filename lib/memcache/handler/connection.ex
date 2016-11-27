@@ -416,18 +416,15 @@ defmodule Memcache.Handler.Connection do
   end
 
   ## Private
-  # defp get_option(state, option) do
-  #   Agent.get(server, &(Map.get(&1, option)))
-  # end
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
   defp normalize_coder(module) when is_atom(module), do: {module, []}
 
-  # defp encode(server, value) do
-  #   coder = get_option(server, :coder)
-  #   apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
-  # end
-  #
+  defp encode(state, value) do
+    coder = Map.get(state, :coder)
+    apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
+  end
+
   defp decode(state, value) do
     coder = Map.get(state, :coder)
     apply(elem(coder, 0), :decode, [value, elem(coder, 1)])
@@ -440,10 +437,6 @@ defmodule Memcache.Handler.Connection do
     {:ok, decode(state, value), cas}
   end
   defp decode_response(rest, _state), do: rest
-
-  # defp connection(server) do
-  #   get_option(server, :connection)
-  # end
 
   # defp ttl_or_default(server, opts) do
   #   if Keyword.has_key?(opts, :ttl) do
@@ -462,19 +455,22 @@ defmodule Memcache.Handler.Connection do
     end
   end
 
-  defp execute_k(state, command, [key | rest], opts \\ []) do
+  defp execute_k(state, command, [key | rest], opts) do
     execute(state, command, [key_with_namespace(state, key) | rest], opts)
-    |> decode_response(state)
   end
 
-  # defp execute_kv(server, command, [key | [value | rest]], opts) do
-  #   execute(server, command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts)
-  #   |> decode_response(server)
-  # end
-  #
+  defp execute_kv(state, command, [key | [value | rest]], opts) do
+    execute(state, command, [key_with_namespace(state, key) | [encode(state, value) | rest]], opts)
+  end
+
   defp execute(state, command, args, opts \\ []) do
     connection = Map.get(state, :connection)
-    Connection.execute(connection, command, args, opts)
+    Connection.execute(connection, command, args, opts) |> decode_response(state)
+  end
+
+  def test(server) do
+    state = GenServer.call(server, :state)
+    IO.puts inspect state
   end
 
   ## Server Callbacks
@@ -500,9 +496,18 @@ defmodule Memcache.Handler.Connection do
     {:reply, result, state}
   end
 
-  def handle_call({:execute_k, command, [key], opts}, _from, state) do
-    result = execute_k(state, command, [key], opts)
+  def handle_call({:execute_k, command, [key | rest], opts}, _from, state) do
+    result = execute_k(state, command, [key | rest], opts)
     {:reply, result, state}
+  end
+
+  def handle_call({:execute_kv, command, [key | rest], opts}, _from, state) do
+    result = execute_k(state, command, [key | rest], opts)
+    {:reply, result, state}
+  end
+
+  def handle_call(:state, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_call(request, from, state) do
