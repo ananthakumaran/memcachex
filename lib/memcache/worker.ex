@@ -3,14 +3,7 @@ defmodule Memcache.Worker do
   use GenServer
   use Memcache.Api
 
-
   alias Memcache.Connection
-
-  @default_opts [
-    ttl: 0,
-    namespace: nil,
-    coder: {Memcache.Coder.Raw, []}
-  ]
 
   @doc """
   Creates a connection using `Memcache.Connection.start_link/2`
@@ -55,10 +48,6 @@ defmodule Memcache.Worker do
     {:ok, state}
   end
 
-  def handle_call({:option, option}, _from, state) do
-    {:reply, Map.get(state, option), state}
-  end
-
   def handle_call(:close, _from, state) do
     connection = Map.get(state, :connection)
     result = Connection.close(connection)
@@ -69,11 +58,6 @@ defmodule Memcache.Worker do
     connection = Map.get(state, :connection)
     result = Connection.execute(connection, command, args, opts)
     {:reply, result, state}
-  end
-
-  def handle_call(request, from, state) do
-    # Call the default implementation from GenServer
-    super(request, from, state)
   end
 
 end

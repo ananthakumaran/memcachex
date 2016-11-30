@@ -8,10 +8,19 @@ defmodule Memcache.Pool do
   * `:pool_overflow` - (integer)
   * `:name` -
   """
+  use GenServer
+  use Memcache.Api
 
-  def start_link(conn_opts, opts) do
+  def start_link(conn_opts \\ [], opts \\ []) do
     {pool_opts, worker_args} = pool_args(conn_opts, opts)
-    :poolboy.start_link(pool_opts, worker_args)
+    {:ok, pool} = :poolboy.start_link(pool_opts, worker_args)
+    conn_opts = Keyword.merge(@default_opts, conn_opts)
+    |> Keyword.put(:pool, pool)
+    GenServer.start_link(__MODULE__, conn_opts, opts)
+  end
+
+  def init(opts) do
+    {:ok, opts |> Enum.into(%{})}
   end
 
   def child_spec(conn_opts, opts, child_opts) do
@@ -38,4 +47,11 @@ defmodule Memcache.Pool do
     end
   end
 
+  def handle_call({:execute, command, args, opts}, _from, state) do
+    pool = Map.get(state, :pool)
+    result = :poolboy.transaction(pool, fn(pid) ->
+      GenServer.call(pid, {:execute, command, args, opts})
+    end)
+    {:reply, result, state}
+  end
 end

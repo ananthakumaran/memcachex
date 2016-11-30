@@ -73,6 +73,12 @@ defmodule Memcache.Api do
       {:ok} | {:ok, integer} |
       error
 
+      @default_opts [
+        ttl: 0,
+        namespace: nil,
+        coder: {Memcache.Coder.Raw, []}
+      ]
+
       @doc """
       Closes the connection to the memcached server.
       """
@@ -404,7 +410,7 @@ defmodule Memcache.Api do
         Keyword.get(opts, :ttl, get_option(server, :ttl))
       end
 
-      defp get_option(server, option) do
+      def get_option(server, option) do
         GenServer.call(server, {:option, option})
       end
 
@@ -425,6 +431,15 @@ defmodule Memcache.Api do
       defp execute_kv(server, command, [key | [value | rest]], opts) do
         GenServer.call(server, {:execute, command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts})
         |> decode_response(server)
+      end
+
+      def handle_call({:option, option}, _from, state) do
+        {:reply, Map.get(state, option), state}
+      end
+
+      def handle_call(request, from, state) do
+        # Call the default implementation from GenServer
+        super(request, from, state)
       end
 
     end
