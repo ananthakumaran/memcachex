@@ -1,4 +1,4 @@
-defmodule Memcache.Connection.Pool do
+defmodule Memcache.Pool do
   @moduledoc """
 
   ## Options
@@ -26,7 +26,7 @@ defmodule Memcache.Connection.Pool do
     pool_opts = [strategy: Keyword.get(opts, :pool_strategy, :fifo),
                  size: Keyword.get(opts, :pool_size, 10),
                  max_overflow: Keyword.get(opts, :pool_overflow, 10),
-                 worker_module: Memcache.Connection.Pool.Worker]
+                 worker_module: Memcache.Worker]
     {name_opts(opts) ++ pool_opts, {conn_opts, opts}}
   end
 
