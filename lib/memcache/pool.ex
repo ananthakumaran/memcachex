@@ -14,8 +14,7 @@ defmodule Memcache.Pool do
   def start_link(conn_opts \\ [], opts \\ []) do
     {pool_opts, worker_args} = pool_args(conn_opts, opts)
     {:ok, pool} = :poolboy.start_link(pool_opts, worker_args)
-    conn_opts = Keyword.merge(@default_opts, conn_opts)
-    |> Keyword.put(:pool, pool)
+    conn_opts = conn_opts |> Keyword.put(:pool, pool)
     GenServer.start_link(__MODULE__, conn_opts, opts)
   end
 
@@ -36,7 +35,7 @@ defmodule Memcache.Pool do
                  size: Keyword.get(opts, :pool_size, 10),
                  max_overflow: Keyword.get(opts, :pool_overflow, 10),
                  worker_module: Memcache.Worker]
-    {name_opts(opts) ++ pool_opts, {conn_opts, opts}}
+    {name_opts(opts) ++ pool_opts, conn_opts}
   end
 
   defp name_opts(opts) do
@@ -47,11 +46,12 @@ defmodule Memcache.Pool do
     end
   end
 
-  def handle_call({:execute, command, args, opts}, _from, state) do
+  def handle_call({:execute, command, args}, _from, state) do
     pool = Map.get(state, :pool)
     result = :poolboy.transaction(pool, fn(pid) ->
-      GenServer.call(pid, {:execute, command, args, opts})
+      apply(Memcache.Worker, command, [pid] ++ args)
     end)
     {:reply, result, state}
   end
+
 end
