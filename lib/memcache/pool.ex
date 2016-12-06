@@ -21,6 +21,34 @@ defmodule Memcache.Pool do
     :poolboy.child_spec(id, pool_opts, worker_args)
   end
 
+  def stop(pool) do
+    {:poolboy.stop(pool)}
+  end
+
+  def connection_pid(pool) do
+    :poolboy.transaction(pool, fn(pid) ->
+      connection_pid(pid)
+    end)
+  end
+
+  def execute_k(pool, command, args, opts \\ []) do
+    :poolboy.transaction(pool, fn(pid) ->
+      apply(Memcache.Worker, :execute_k, [pid, command, args, opts])
+    end)
+  end
+
+  def execute_kv(pool, command, args, opts) do
+    :poolboy.transaction(pool, fn(pid) ->
+      apply(Memcache.Worker, :execute_kv, [pid, command, args, opts])
+    end)
+  end
+
+  def execute(pool, command, args, opts \\ []) do
+    :poolboy.transaction(pool, fn(pid) ->
+      apply(Memcache.Worker, :execute, [pid, command, args, opts])
+    end)
+  end
+
   ## Helpers
 
   defp pool_args(conn_opts, opts) do
@@ -37,24 +65,6 @@ defmodule Memcache.Pool do
       name when is_atom(name) -> [name: {:local, name}]
       name                    -> [name: name]
     end
-  end
-
-  def execute_k(pool, command, args, opts \\ []) do
-    :poolboy.transaction(pool, fn(pid) ->
-      apply(Memcache.Worker, :execute_k, [pid] ++ [command] ++ [args] ++ [opts])
-    end)
-  end
-
-  def execute_kv(pool, command, args, opts) do
-    :poolboy.transaction(pool, fn(pid) ->
-      apply(Memcache.Worker, :execute_kv, [pid] ++ [command] ++ [args] ++ [opts])
-    end)
-  end
-
-  def execute(pool, command, args, opts \\ []) do
-    :poolboy.transaction(pool, fn(pid) ->
-      apply(Memcache.Worker, :execute, [pid] ++ [command] ++ [args] ++ [opts])
-    end)
   end
 
 end
