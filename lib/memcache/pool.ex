@@ -1,15 +1,7 @@
 defmodule Memcache.Pool do
   @moduledoc """
-
-  ## Options
-
-  * `:strategy` - (atom) :fifo or :lifo. Determines whether checked in workers
-    should be placed first or last in the line of available workers.
-  * `:size` - (integer) the number of connections of the pool.
-  * `:max_overflow` - (integer) maximum number of workers created
-    if pool is empty.
-  * `:name` -
   """
+
   use Memcache.Api
 
   @default_opts [
@@ -18,21 +10,35 @@ defmodule Memcache.Pool do
     max_overflow: 10
   ]
 
-  def start_link(conn_opts \\ [], opts \\ []) do
-    name_opt = name_opts(opts)
-    pool_opts =
-      Keyword.merge(@default_opts, opts)
-      |> Keyword.drop([:name])
+  @doc """
+  Creates a pool of connections supervised by poolboy.
+
+  ## Connection Options
+
+  This is a superset of the connection options accepted by the
+  `Memcache.Worker.start_link/1`. The following list specifies the
+  additional options.
+
+  * `:strategy` - (atom) :fifo or :lifo. Determines whether checked in workers
+    should be placed first or last in the line of available workers.
+
+  * `:size` - (integer) the number of connections of the pool.
+
+  * `:max_overflow` - (integer) maximum number of workers created
+    if pool is empty.
+
+  * `:name` - Name of the pool.
+  """
+  def start_link(conn_opts \\ []) do
+    name_opt = name_opts(conn_opts)
+    extra_opts = [:strategy, :size, :max_overflow]
+    pool_opts = Keyword.take(conn_opts, extra_opts)
+    pool_opts = Keyword.merge(@default_opts, pool_opts)
       |> Keyword.put(:worker_module, Memcache.Worker)
-      
+    conn_opts = Keyword.drop(conn_opts, Keyword.keys(pool_opts))
+
     :poolboy.start_link(pool_opts ++ name_opt, conn_opts)
   end
-
-  # def child_spec(conn_opts, opts, child_opts) do
-  #   {pool_opts, worker_args} = pool_args(conn_opts, opts)
-  #   id = Keyword.get(child_opts, :id, __MODULE__)
-  #   :poolboy.child_spec(id, pool_opts, worker_args)
-  # end
 
   def stop(pool) do
     {:poolboy.stop(pool)}

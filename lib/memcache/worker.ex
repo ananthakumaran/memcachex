@@ -34,10 +34,13 @@ defmodule Memcache.Worker do
   """
   @spec start_link(Keyword.t) :: GenServer.on_start
   def start_link(connection_options \\ []) do
-    extra_opts = [:ttl, :namespace, :coder]
     connection_options = Keyword.merge(@default_opts, connection_options)
-    |> Keyword.update!(:coder, &normalize_coder/1)
-    state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
+      |> Keyword.update!(:coder, &normalize_coder/1)
+    extra_opts = [:ttl, :namespace, :coder]
+    state = connection_options
+      |> Keyword.take(extra_opts)
+      |> Enum.into(%{})
+
     Agent.start_link(fn ->
       {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts))
       Map.put(state, :connection, pid)
