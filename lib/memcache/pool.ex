@@ -3,9 +3,11 @@ defmodule Memcache.Pool do
 
   ## Options
 
-  * `:strategy` - (atom) :lifo or :fifo
-  * `:size` - (integer)
-  * `:max_overflow` - (integer)
+  * `:strategy` - (atom) :fifo or :lifo. Determines whether checked in workers
+    should be placed first or last in the line of available workers.
+  * `:size` - (integer) the number of connections of the pool.
+  * `:max_overflow` - (integer) maximum number of workers created
+    if pool is empty.
   * `:name` -
   """
   use Memcache.Api
@@ -17,11 +19,13 @@ defmodule Memcache.Pool do
   ]
 
   def start_link(conn_opts \\ [], opts \\ []) do
+    name_opt = name_opts(opts)
     pool_opts =
       Keyword.merge(@default_opts, opts)
-      |> Keyword.update(:name, [], &name_opt/1)
+      |> Keyword.drop([:name])
       |> Keyword.put(:worker_module, Memcache.Worker)
-    :poolboy.start_link(pool_opts, conn_opts)
+      
+    :poolboy.start_link(pool_opts ++ name_opt, conn_opts)
   end
 
   # def child_spec(conn_opts, opts, child_opts) do
@@ -60,11 +64,11 @@ defmodule Memcache.Pool do
 
   ## Helpers
 
-  defp name_opt(name) do
-    case name do
-      nil                     -> nil
-      name when is_atom(name) -> {:local, name}
-      name                    -> name
+  defp name_opts(opts) do
+    case Keyword.get(opts, :name) do
+      nil                     -> []
+      name when is_atom(name) -> [name: {:local, name}]
+      name                    -> [name: name]
     end
   end
 
