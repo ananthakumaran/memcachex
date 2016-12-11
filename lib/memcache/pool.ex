@@ -3,23 +3,32 @@ defmodule Memcache.Pool do
 
   ## Options
 
-  * `:pool_strategy` - (atom) :lifo or :fifo
-  * `:pool_size` - (integer)
-  * `:pool_overflow` - (integer)
+  * `:strategy` - (atom) :lifo or :fifo
+  * `:size` - (integer)
+  * `:max_overflow` - (integer)
   * `:name` -
   """
   use Memcache.Api
 
+  @default_opts [
+    strategy: :lifo,
+    size: 10,
+    max_overflow: 10
+  ]
+
   def start_link(conn_opts \\ [], opts \\ []) do
-    {pool_opts, worker_args} = pool_args(conn_opts, opts)
-    :poolboy.start_link(pool_opts, worker_args)
+    pool_opts =
+      Keyword.merge(@default_opts, opts)
+      |> Keyword.update(:name, [], &name_opt/1)
+      |> Keyword.put(:worker_module, Memcache.Worker)
+    :poolboy.start_link(pool_opts, conn_opts)
   end
 
-  def child_spec(conn_opts, opts, child_opts) do
-    {pool_opts, worker_args} = pool_args(conn_opts, opts)
-    id = Keyword.get(child_opts, :id, __MODULE__)
-    :poolboy.child_spec(id, pool_opts, worker_args)
-  end
+  # def child_spec(conn_opts, opts, child_opts) do
+  #   {pool_opts, worker_args} = pool_args(conn_opts, opts)
+  #   id = Keyword.get(child_opts, :id, __MODULE__)
+  #   :poolboy.child_spec(id, pool_opts, worker_args)
+  # end
 
   def stop(pool) do
     {:poolboy.stop(pool)}
@@ -51,19 +60,11 @@ defmodule Memcache.Pool do
 
   ## Helpers
 
-  defp pool_args(conn_opts, opts) do
-    pool_opts = [strategy: Keyword.get(opts, :pool_strategy, :fifo),
-                 size: Keyword.get(opts, :pool_size, 10),
-                 max_overflow: Keyword.get(opts, :pool_overflow, 10),
-                 worker_module: Memcache.Worker]
-    {name_opts(opts) ++ pool_opts, conn_opts}
-  end
-
-  defp name_opts(opts) do
-    case Keyword.get(opts, :name) do
-      nil                     -> []
-      name when is_atom(name) -> [name: {:local, name}]
-      name                    -> [name: name]
+  defp name_opt(name) do
+    case name do
+      nil                     -> nil
+      name when is_atom(name) -> {:local, name}
+      name                    -> name
     end
   end
 
