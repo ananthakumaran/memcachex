@@ -43,7 +43,7 @@ defmodule Memcache.PoolTest do
     assert { :ok, 4 } == Pool.decr(pid, "count")
     assert { :ok, 2 } == Pool.decr(pid, "count", by: 2)
     assert { :ok, _hash } = Pool.stat(pid)
-    assert { :ok, _settings } = Pool.stat(pid, "settings")
+    assert { :ok, _settings } = Pool.stat(pid, ["settings"])
     assert { :ok, _version } = Pool.version(pid)
 
     cas_error = { :error, "Key exists" }

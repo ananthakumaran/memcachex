@@ -46,7 +46,7 @@ defmodule Memcache.WorkerTest do
     assert { :ok, 4 } == Worker.decr(pid, "count")
     assert { :ok, 2 } == Worker.decr(pid, "count", by: 2)
     assert { :ok, _hash } = Worker.stat(pid)
-    assert { :ok, _settings } = Worker.stat(pid, "settings")
+    assert { :ok, _settings } = Worker.stat(pid, ["settings"])
     assert { :ok, _version } = Worker.version(pid)
 
     cas_error = { :error, "Key exists" }
