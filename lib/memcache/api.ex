@@ -82,7 +82,7 @@ defmodule Memcache.Api do
       Accepted option: `:cas`
       """
       @spec get(GenServer.server, binary, Keyword.t) :: fetch_result
-      def get(server, key, opts \\ []) do
+      def get(server \\ nil, key, opts \\ []) do
         execute_k(server, :GET, [key], opts)
       end
 
@@ -92,7 +92,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`, `:ttl`
       """
       @spec set(GenServer.server, binary, binary, Keyword.t) :: store_result
-      def set(server, key, value, opts \\ []) do
+      def set(server \\ nil, key, value, opts \\ []) do
         set_cas(server, key, value, 0, opts)
       end
 
@@ -103,7 +103,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`, `:ttl`
       """
       @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-      def set_cas(server, key, value, cas, opts \\ []) do
+      def set_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :SET, [key, value, cas], opts)
       end
 
@@ -122,7 +122,7 @@ defmodule Memcache.Api do
       disabled by passing `[retry: false]` option.
       """
       @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: {:ok, any} | error
-      def cas(server, key, update, opts \\ []) do
+      def cas(server \\ nil, key, update, opts \\ []) do
         case get(server, key, [cas: true]) do
           { :ok, value, cas } ->
             new_value = update.(value)
@@ -147,7 +147,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`, `:ttl`
       """
       @spec add(GenServer.server, binary, binary, Keyword.t) :: store_result
-      def add(server, key, value, opts \\ []) do
+      def add(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :ADD, [key, value], opts)
       end
 
@@ -158,7 +158,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`, `:ttl`
       """
       @spec replace(GenServer.server, binary, binary, Keyword.t) :: store_result
-      def replace(server, key, value, opts \\ []) do
+      def replace(server \\ nil, key, value, opts \\ []) do
         replace_cas(server, key, value, 0, opts)
       end
 
@@ -169,7 +169,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`, `:ttl`
       """
       @spec replace_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-      def replace_cas(server, key, value, cas, opts \\ []) do
+      def replace_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :REPLACE, [key, value, cas], opts)
       end
 
@@ -178,7 +178,7 @@ defmodule Memcache.Api do
       not found" }` if the given key is not found
       """
       @spec delete(GenServer.server, binary) :: store_result
-      def delete(server, key) do
+      def delete(server \\ nil, key) do
         execute_k(server, :DELETE, [key])
       end
 
@@ -187,7 +187,7 @@ defmodule Memcache.Api do
       to the provided value
       """
       @spec delete_cas(GenServer.server, binary, integer) :: store_result
-      def delete_cas(server, key, cas) do
+      def delete_cas(server \\ nil, key, cas) do
         execute_k(server, :DELETE, [key, cas])
       end
 
@@ -198,7 +198,7 @@ defmodule Memcache.Api do
       Accepted options: `:ttl`
       """
       @spec flush(GenServer.server, Keyword.t) :: store_result
-      def flush(server, opts \\ []) do
+      def flush(server \\ nil, opts \\ []) do
         execute(server, :FLUSH, [Keyword.get(opts, :ttl, 0)])
       end
 
@@ -210,7 +210,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`
       """
       @spec append(GenServer.server, binary, binary, Keyword.t) :: store_result
-      def append(server, key, value, opts \\ []) do
+      def append(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :APPEND, [key, value], opts)
       end
 
@@ -221,7 +221,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`
       """
       @spec append_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-      def append_cas(server, key, value, cas, opts \\ []) do
+      def append_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :APPEND, [key, value, cas], opts)
       end
 
@@ -233,7 +233,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`
       """
       @spec prepend(GenServer.server, binary, binary, Keyword.t) :: store_result
-      def prepend(server, key, value, opts \\ []) do
+      def prepend(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :PREPEND, [key, value], opts)
       end
 
@@ -244,7 +244,7 @@ defmodule Memcache.Api do
       Accepted options: `:cas`
       """
       @spec prepend_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
-      def prepend_cas(server, key, value, cas, opts \\ []) do
+      def prepend_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :PREPEND, [key, value, cas], opts)
       end
 
@@ -264,7 +264,7 @@ defmodule Memcache.Api do
       other options: `:cas`, `:ttl`
       """
       @spec incr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
-      def incr(server, key, opts \\ []) do
+      def incr(server \\ nil, key, opts \\ []) do
         incr_cas(server, key, 0, opts)
       end
 
@@ -283,7 +283,7 @@ defmodule Memcache.Api do
       other options: `:cas`, `:ttl`
       """
       @spec incr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
-      def incr_cas(server, key, cas, opts \\ []) do
+      def incr_cas(server \\ nil, key, cas, opts \\ []) do
         defaults = [by: 1, default: 0]
         opts = Keyword.merge(defaults, opts)
         execute_k(server, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
@@ -305,7 +305,7 @@ defmodule Memcache.Api do
       other options: `:cas`, `:ttl`
       """
       @spec decr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
-      def decr(server, key, opts \\ []) do
+      def decr(server \\ nil, key, opts \\ []) do
         decr_cas(server, key, 0, opts)
       end
 
@@ -324,33 +324,25 @@ defmodule Memcache.Api do
       other options: `:cas`, `:ttl`
       """
       @spec decr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
-      def decr_cas(server, key, cas, opts \\ []) do
+      def decr_cas(server \\ nil, key, cas, opts \\ []) do
         defaults = [by: 1, default: 0]
         opts = Keyword.merge(defaults, opts)
         execute_k(server, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
       end
 
       @doc """
-      Gets the default set of server statistics
-      """
-      @spec stat(GenServer.server) :: HashDict.t | error
-      def stat(server) do
-        execute(server, :STAT, [])
-      end
-
-      @doc """
       Gets the specific set of server statistics
       """
       @spec stat(GenServer.server, String.t) :: HashDict.t | error
-      def stat(server, key) do
-        execute(server, :STAT, [key])
+      def stat(server \\ nil, key \\ []) do
+        execute(server, :STAT, key)
       end
 
       @doc """
       Gets the version of the server
       """
       @spec version(GenServer.server) :: String.t | error
-      def version(server) do
+      def version(server \\ nil) do
         execute(server, :VERSION, [])
       end
 
@@ -358,7 +350,7 @@ defmodule Memcache.Api do
       Sends a noop command
       """
       @spec noop(GenServer.server) :: {:ok} | error
-      def noop(server) do
+      def noop(server \\ nil) do
         execute(server, :NOOP, [])
       end
 
