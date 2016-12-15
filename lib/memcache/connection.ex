@@ -136,7 +136,8 @@ defmodule Memcache.Connection do
         :ok = :inet.setopts(sock, [active: :once])
         result
       { :error, reason } ->
-        _ = Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
+        if Mix.env != :test, do:
+          _ = Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
         backoff = get_backoff(s)
         { :backoff, backoff, %{s | backoff_current: backoff} }
     end
