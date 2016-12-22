@@ -15,7 +15,11 @@ defmodule Memcachex do
       worker(Memcache.Pool, [config_opts], [])
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: :memxsupervisor)
+    Supervisor.start_link(
+      children,
+      strategy: :one_for_one,
+      name: :memxsupervisor
+    )
   end
 
   def execute_k(_server, command, args, opts \\ []) do
@@ -31,6 +35,16 @@ defmodule Memcachex do
   def execute(_server, command, args, opts \\ []) do
     {pid, module} = get_pid_and_module
     module.execute(pid, command, args, opts)
+  end
+
+  def connection_pid(_server \\ nil) do
+    {pid, module} = get_pid_and_module
+    module.connection_pid(pid)
+  end
+
+  def close(_server \\ nil) do
+    {pid, module} = get_pid_and_module
+    module.close(pid)
   end
 
   defp get_pid_and_module do

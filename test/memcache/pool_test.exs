@@ -86,7 +86,7 @@ defmodule Memcache.PoolTest do
     assert { :ok, pid } = Pool.start_link()
     common(pid)
     append_prepend(pid)
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "cas" do
@@ -105,7 +105,7 @@ defmodule Memcache.PoolTest do
     Task.await(task_c)
 
     assert { :ok, "300" } == Pool.get(pid, "counter")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "expire" do
@@ -134,7 +134,7 @@ defmodule Memcache.PoolTest do
     :timer.sleep(3000)
 
     assert { :error, "Key not found" } == Pool.get(pid, "hello")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "namespace" do
@@ -148,11 +148,11 @@ defmodule Memcache.PoolTest do
     assert { :ok } == Pool.delete(namespaced, "hello")
     assert { :error, "Key not found" } == Pool.get(namespaced, "hello")
     assert { :ok } = Pool.flush(pid)
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
 
     common(namespaced)
     append_prepend(namespaced)
-    assert { :ok } = Pool.stop(namespaced)
+    assert { :ok } = Pool.close(namespaced)
   end
 
   test "default ttl" do
@@ -175,7 +175,7 @@ defmodule Memcache.PoolTest do
     assert { :error, "Key not found" } == Pool.get(pid, "decr")
 
     common(pid)
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "erlang coder" do
@@ -184,12 +184,12 @@ defmodule Memcache.PoolTest do
 
     assert { :ok } == Pool.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Pool.get(pid, "hello")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
 
     assert { :ok, pid } = Pool.start_link([coder: {Memcache.Coder.Erlang, [compressed: 9]}])
     assert { :ok } == Pool.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Pool.get(pid, "hello")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "json coder" do
@@ -200,17 +200,17 @@ defmodule Memcache.PoolTest do
     assert { :ok, ["list", 1] } == Pool.get(pid, "hello")
     assert { :ok } == Pool.set(pid, "hello", %{ "a" => 1 })
     assert { :ok, %{ "a" => 1 } } == Pool.get(pid, "hello")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
 
     assert { :ok, pid } = Pool.start_link([coder: {Memcache.Coder.JSON, [keys: :atoms]}])
     assert { :ok } == Pool.set(pid, "hello", %{hello: "world"})
     assert { :ok, %{hello: "world"} } == Pool.get(pid, "hello")
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 
   test "zip coder" do
     assert { :ok, pid } = Pool.start_link([coder: Memcache.Coder.ZIP])
     common(pid)
-    assert { :ok } = Pool.stop(pid)
+    assert { :ok } = Pool.close(pid)
   end
 end

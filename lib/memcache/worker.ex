@@ -1,5 +1,21 @@
 defmodule Memcache.Worker do
   @moduledoc """
+
+  ## Example
+
+      { :ok, pid } = Memcache.Worker.start_link()
+      { :ok } = Memcache.Worker.set(pid, "hello", "world")
+      { :ok, "world" } = Memcache.Worker.get(pid, "hello")
+
+  ## Coder
+
+  `Memcache.Coder` allows you to specify how the value should be encoded before
+  sending it to the server and how it should be decoded after it is
+  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
+  `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
+  `Memcache.Coder.ZIP`. Custom coders can be created by implementing
+  the `Memcache.Coder` behaviour.
+
   """
 
   use Memcache.Api
@@ -47,21 +63,12 @@ defmodule Memcache.Worker do
     end)
   end
 
-  @doc """
-  Closes the connection to the memcached server.
-  """
-  @spec stop(GenServer.server) :: {:ok}
-  def stop(server) do
+  def close(server) do
     result = Connection.close(connection(server))
     :ok = Agent.stop(server)
     result
   end
 
-  @doc """
-  Gets the pid of the `Memcache.Connection` process. Can be used to
-  call functions in `Memcache.Connection`
-  """
-  @spec connection_pid(GenServer.server) :: pid
   def connection_pid(server) do
     connection(server)
   end

@@ -1,5 +1,7 @@
 defmodule Memcache.Pool do
   @moduledoc """
+  Module that creates a pool of connections to the memcached server using
+  poolboy
   """
 
   use Memcache.Api
@@ -40,7 +42,7 @@ defmodule Memcache.Pool do
     :poolboy.start_link(pool_opts ++ name_opt, conn_opts)
   end
 
-  def stop(pool) do
+  def close(pool) do
     {:poolboy.stop(pool)}
   end
 

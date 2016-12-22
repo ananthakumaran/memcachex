@@ -89,7 +89,7 @@ defmodule Memcache.WorkerTest do
     assert { :ok, pid } = Worker.start_link()
     common(pid)
     append_prepend(pid)
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "cas" do
@@ -108,7 +108,7 @@ defmodule Memcache.WorkerTest do
     Task.await(task_c)
 
     assert { :ok, "300" } == Worker.get(pid, "counter")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "expire" do
@@ -137,7 +137,7 @@ defmodule Memcache.WorkerTest do
     :timer.sleep(3000)
 
     assert { :error, "Key not found" } == Worker.get(pid, "hello")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "namespace" do
@@ -151,11 +151,11 @@ defmodule Memcache.WorkerTest do
     assert { :ok } == Worker.delete(namespaced, "hello")
     assert { :error, "Key not found" } == Worker.get(namespaced, "hello")
     assert { :ok } = Worker.flush(pid)
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
 
     common(namespaced)
     append_prepend(namespaced)
-    assert { :ok } = Worker.stop(namespaced)
+    assert { :ok } = Worker.close(namespaced)
   end
 
   test "default ttl" do
@@ -178,7 +178,7 @@ defmodule Memcache.WorkerTest do
     assert { :error, "Key not found" } == Worker.get(pid, "decr")
 
     common(pid)
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "server and connection are linked" do
@@ -195,12 +195,12 @@ defmodule Memcache.WorkerTest do
 
     assert { :ok } == Worker.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Worker.get(pid, "hello")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
 
     assert { :ok, pid } = Worker.start_link([coder: {Memcache.Coder.Erlang, [compressed: 9]}])
     assert { :ok } == Worker.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Worker.get(pid, "hello")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "json coder" do
@@ -211,17 +211,17 @@ defmodule Memcache.WorkerTest do
     assert { :ok, ["list", 1] } == Worker.get(pid, "hello")
     assert { :ok } == Worker.set(pid, "hello", %{ "a" => 1 })
     assert { :ok, %{ "a" => 1 } } == Worker.get(pid, "hello")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
 
     assert { :ok, pid } = Worker.start_link([coder: {Memcache.Coder.JSON, [keys: :atoms]}])
     assert { :ok } == Worker.set(pid, "hello", %{hello: "world"})
     assert { :ok, %{hello: "world"} } == Worker.get(pid, "hello")
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 
   test "zip coder" do
     assert { :ok, pid } = Worker.start_link([coder: Memcache.Coder.ZIP])
     common(pid)
-    assert { :ok } = Worker.stop(pid)
+    assert { :ok } = Worker.close(pid)
   end
 end

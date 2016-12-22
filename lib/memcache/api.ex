@@ -1,23 +1,18 @@
 defmodule Memcache.Api do
   @moduledoc """
-  This module provides a user friendly API to interact with the
+  A behaviour module that provides a user friendly API to interact with the
   memcached server.
 
-  ## Example
+  ## Callbacks
 
-      { :ok, pid } = Memcache.start_link()
-      { :ok } = Memcache.set(pid, "hello", "world")
-      { :ok, "world" } = Memcache.get(pid, "hello")
+  Most callbacks are implemented just using this module, but there
+  are a few you must implement:
 
-
-  ## Coder
-
-  `Memcache.Coder` allows you to specify how the value should be encoded before
-  sending it to the server and how it should be decoded after it is
-  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
-  `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
-  `Memcache.Coder.ZIP`. Custom coders can be created by implementing
-  the `Memcache.Coder` behaviour.
+    `execute_k/4`
+    `execute_kv/4`
+    `execute/4`
+    `connection_pid/1`
+    `close/1`
 
   ## CAS
 
@@ -27,10 +22,10 @@ defmodule Memcache.Api do
   command will fail if the value has changed by someone else in the
   mean time.
 
-      {:ok, "hello", cas} = Memcache.get(pid, "key", cas: true)
-      {:ok} = Memcache.set_cas(pid, "key", "world", cas)
+      {:ok, "hello", cas} = Memcache.Worker.get(pid, "key", cas: true)
+      {:ok} = Memcache.Worker.set_cas(pid, "key", "world", cas)
 
-  Memcache module provides a *_cas variant for most of the
+  Memcache.Api module provides a *_cas variant for most of the
   functions. This function will take an additional argument named
   `cas` and returns the same value as their counterpart except in case
   of CAS error. In case of CAS error the returned value would be equal
@@ -53,75 +48,256 @@ defmodule Memcache.Api do
     `start_link/2`.
   """
 
+  @doc """
+  Gets the value associated with the key. Returns `{:error, "Key not found"}`
+  if the given key doesn't exist.
+
+  Accepted option: `:cas`
+  """
+  @callback get(pid, key :: binary, Keyword.t) :: fetch_result
+
+  @doc """
+  Sets the key to value
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @callback set(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Sets the key to value if the key exists and has CAS value equal to
+  the provided value
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @callback set_cas(pid, key :: binary, value :: binary, cas :: integer, Keyword.t) :: store_result
+
+  @doc """
+  Compare and swap value using optimistic locking.
+
+  1. Get the existing value for key
+  2. If it exists, call the update function with the value
+  3. Set the returned value for key
+
+  The 3rd operation will fail if someone else has updated the value
+  for the same key in the mean time. In that case, by default, this
+  function will go to step 1 and try again. Retry behavior can be
+  disabled by passing `[retry: false]` option.
+  """
+  @callback cas(pid, key :: binary, update :: fun, Keyword.t) :: result
+
+  @doc """
+  Sets the key to value if the key doesn't exist already. Returns
+  `{:error, "Key exists"}` if the given key already exists.
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @callback add(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Sets the key to value if the key already exists. Returns `{:error,
+  "Key not found"}` if the given key doesn't exist.
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @callback replace(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Sets the key to value if the key already exists and has CAS value
+  equal to the provided value.
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @callback replace_cas(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Removes the item with the given key value. Returns `{ :error, "Key
+  not found" }` if the given key is not found
+  """
+  @callback delete(pid, key :: binary) :: store_result
+
+  @doc """
+  Removes the item with the given key value if the CAS value is equal
+  to the provided value
+  """
+  @callback delete_cas(pid, key :: binary, cas :: integer) :: store_result
+
+  @doc """
+  Flush all the items in the server. `ttl` option will cause the flush
+  to be delayed by the specified time.
+
+  Accepted options: `:ttl`
+  """
+  @callback flush(pid, Keyword.t) :: store_result
+
+  @doc """
+  Appends the value to the end of the current value of the
+  key. Returns `{:error, "Item not stored"}` if the item is not present
+  in the server already
+
+  Accepted options: `:cas`
+  """
+  @callback append(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Appends the value to the end of the current value of the
+  key if the CAS value is equal to the provided value
+
+  Accepted options: `:cas`
+  """
+  @callback append_cas(pid, key :: binary, value :: binary, cas :: integer, Keyword.t) :: store_result
+
+  @doc """
+  Prepends the value to the start of the current value of the
+  key. Returns `{:error, "Item not stored"}` if the item is not present
+  in the server already
+
+  Accepted options: `:cas`
+  """
+  @callback prepend(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Prepends the value to the start of the current value of the
+  key if the CAS value is equal to the provided value
+
+  Accepted options: `:cas`
+  """
+  @callback prepend_cas(pid, key :: binary, value :: binary, Keyword.t) :: store_result
+
+  @doc """
+  Increments the current value. Only integer value can be
+  incremented. Returns `{ :error, "Incr/Decr on non-numeric value"}` if
+  the value stored in the server is not numeric.
+
+  ## Options
+
+  * `:by` - (integer) The amount to add to the existing
+    value. Defaults to `1`.
+
+  * `:default` - (integer) Default value to use in case the key is not
+    found. Defaults to `0`.
+
+  other options: `:cas`, `:ttl`
+  """
+  @callback incr(pid, key :: binary, Keyword.t) :: fetch_integer_result
+
+  @doc """
+  Increments the current value if the CAS value is equal to the
+  provided value.
+
+  ## Options
+
+  * `:by` - (integer) The amount to add to the existing
+    value. Defaults to `1`.
+
+  * `:default` - (integer) Default value to use in case the key is not
+    found. Defaults to `0`.
+
+  other options: `:cas`, `:ttl`
+  """
+  @callback incr_cas(pid, key :: binary, cas :: integer, Keyword.t) :: fetch_integer_result
+
+  @doc """
+  Decremens the current value. Only integer value can be
+  decremented. Returns `{ :error, "Incr/Decr on non-numeric value"}` if
+  the value stored in the server is not numeric.
+
+  ## Options
+
+  * `:by` - (integer) The amount to add to the existing
+    value. Defaults to `1`.
+
+  * `:default` - (integer) Default value to use in case the key is not
+    found. Defaults to `0`.
+
+  other options: `:cas`, `:ttl`
+  """
+  @callback decr(pid, key :: binary, Keyword.t) :: fetch_integer_result
+
+  @doc """
+  Decrements the current value if the CAS value is equal to the
+  provided value.
+
+  ## Options
+
+  * `:by` - (integer) The amount to add to the existing
+    value. Defaults to `1`.
+
+  * `:default` - (integer) Default value to use in case the key is not
+    found. Defaults to `0`.
+
+  other options: `:cas`, `:ttl`
+  """
+  @callback decr_cas(pid, key :: binary, cas :: integer, Keyword.t) :: fetch_integer_result
+
+  @doc """
+  Gets the specific set of server statistics
+  """
+  @callback stat(pid, String.t) :: HashDict.t | error
+
+  @doc """
+  Gets the version of the server
+  """
+  @callback version(pid) :: String.t | error
+
+  @doc """
+  Sends a noop command
+  """
+  @callback noop(pid) :: {:ok} | error
+
+  @doc """
+  Closes the connection to the memcached server.
+  """
+  @callback close(pid) :: {:ok}
+
+  @doc """
+  Gets the pid of the `Memcache.Connection` process. Can be used to
+  call functions in `Memcache.Connection`
+  """
+  @callback connection_pid(pid) :: pid
+
+  @callback execute_k(pid, command :: atom, args :: list, opts :: Keyword.t) :: any
+  @callback execute_kv(pid, command :: atom, args :: list, opts :: Keyword.t) :: any
+  @callback execute(pid, command :: atom, args :: list, opts :: Keyword.t) :: any
+
+
+  @type error :: {:error, binary | atom}
+
+  @type result ::
+  {:ok} | {:ok, integer} |
+  {:ok, any} | {:ok, any, integer} |
+  error
+
+  @type fetch_result ::
+  {:ok, any} | {:ok, any, integer} |
+  error
+
+  @type fetch_integer_result ::
+  {:ok, integer} | {:ok, integer, integer} |
+  error
+
+  @type store_result ::
+  {:ok} | {:ok, integer} |
+  error
+
 
   defmacro __using__(_) do
     quote do
+      @behaviour Memcache.Api
 
-      @type error :: {:error, binary | atom}
-      @type result ::
-      {:ok} | {:ok, integer} |
-      {:ok, any} | {:ok, any, integer} |
-      error
-
-      @type fetch_result ::
-      {:ok, any} | {:ok, any, integer} |
-      error
-
-      @type fetch_integer_result ::
-      {:ok, integer} | {:ok, integer, integer} |
-      error
-
-      @type store_result ::
-      {:ok} | {:ok, integer} |
-      error
-
-      @doc """
-      Gets the value associated with the key. Returns `{:error, "Key not
-      found"}` if the given key doesn't exist.
-
-      Accepted option: `:cas`
-      """
-      @spec get(GenServer.server, binary, Keyword.t) :: fetch_result
       def get(server \\ nil, key, opts \\ []) do
         execute_k(server, :GET, [key], opts)
       end
 
-      @doc """
-      Sets the key to value
-
-      Accepted options: `:cas`, `:ttl`
-      """
-      @spec set(GenServer.server, binary, binary, Keyword.t) :: store_result
       def set(server \\ nil, key, value, opts \\ []) do
         set_cas(server, key, value, 0, opts)
       end
 
-      @doc """
-      Sets the key to value if the key exists and has CAS value equal to
-      the provided value
-
-      Accepted options: `:cas`, `:ttl`
-      """
-      @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
       def set_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :SET, [key, value, cas], opts)
       end
 
       @cas_error { :error, "Key exists" }
 
-      @doc """
-      Compare and swap value using optimistic locking.
-
-      1. Get the existing value for key
-      2. If it exists, call the update function with the value
-      3. Set the returned value for key
-
-      The 3rd operation will fail if someone else has updated the value
-      for the same key in the mean time. In that case, by default, this
-      function will go to step 1 and try again. Retry behavior can be
-      disabled by passing `[retry: false]` option.
-      """
-      @spec cas(GenServer.server, binary, (binary -> binary), Keyword.t) :: {:ok, any} | error
       def cas(server \\ nil, key, update, opts \\ []) do
         case get(server, key, [cas: true]) do
           { :ok, value, cas } ->
@@ -140,216 +316,74 @@ defmodule Memcache.Api do
         end
       end
 
-      @doc """
-      Sets the key to value if the key doesn't exist already. Returns
-      `{:error, "Key exists"}` if the given key already exists.
-
-      Accepted options: `:cas`, `:ttl`
-      """
-      @spec add(GenServer.server, binary, binary, Keyword.t) :: store_result
       def add(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :ADD, [key, value], opts)
       end
 
-      @doc """
-      Sets the key to value if the key already exists. Returns `{:error,
-      "Key not found"}` if the given key doesn't exist.
-
-      Accepted options: `:cas`, `:ttl`
-      """
-      @spec replace(GenServer.server, binary, binary, Keyword.t) :: store_result
       def replace(server \\ nil, key, value, opts \\ []) do
         replace_cas(server, key, value, 0, opts)
       end
 
-      @doc """
-      Sets the key to value if the key already exists and has CAS value
-      equal to the provided value.
-
-      Accepted options: `:cas`, `:ttl`
-      """
-      @spec replace_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
       def replace_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :REPLACE, [key, value, cas], opts)
       end
 
-      @doc """
-      Removes the item with the given key value. Returns `{ :error, "Key
-      not found" }` if the given key is not found
-      """
-      @spec delete(GenServer.server, binary) :: store_result
       def delete(server \\ nil, key) do
         execute_k(server, :DELETE, [key])
       end
 
-      @doc """
-      Removes the item with the given key value if the CAS value is equal
-      to the provided value
-      """
-      @spec delete_cas(GenServer.server, binary, integer) :: store_result
       def delete_cas(server \\ nil, key, cas) do
         execute_k(server, :DELETE, [key, cas])
       end
 
-      @doc """
-      Flush all the items in the server. `ttl` option will cause the flush
-      to be delayed by the specified time.
-
-      Accepted options: `:ttl`
-      """
-      @spec flush(GenServer.server, Keyword.t) :: store_result
       def flush(server \\ nil, opts \\ []) do
         execute(server, :FLUSH, [Keyword.get(opts, :ttl, 0)])
       end
 
-      @doc """
-      Appends the value to the end of the current value of the
-      key. Returns `{:error, "Item not stored"}` if the item is not present
-      in the server already
-
-      Accepted options: `:cas`
-      """
-      @spec append(GenServer.server, binary, binary, Keyword.t) :: store_result
       def append(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :APPEND, [key, value], opts)
       end
 
-      @doc """
-      Appends the value to the end of the current value of the
-      key if the CAS value is equal to the provided value
-
-      Accepted options: `:cas`
-      """
-      @spec append_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
       def append_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :APPEND, [key, value, cas], opts)
       end
 
-      @doc """
-      Prepends the value to the start of the current value of the
-      key. Returns `{:error, "Item not stored"}` if the item is not present
-      in the server already
-
-      Accepted options: `:cas`
-      """
-      @spec prepend(GenServer.server, binary, binary, Keyword.t) :: store_result
       def prepend(server \\ nil, key, value, opts \\ []) do
         execute_kv(server, :PREPEND, [key, value], opts)
       end
 
-      @doc """
-      Prepends the value to the start of the current value of the
-      key if the CAS value is equal to the provided value
-
-      Accepted options: `:cas`
-      """
-      @spec prepend_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
       def prepend_cas(server \\ nil, key, value, cas, opts \\ []) do
         execute_kv(server, :PREPEND, [key, value, cas], opts)
       end
 
-      @doc """
-      Increments the current value. Only integer value can be
-      incremented. Returns `{ :error, "Incr/Decr on non-numeric value"}` if
-      the value stored in the server is not numeric.
-
-      ## Options
-
-      * `:by` - (integer) The amount to add to the existing
-        value. Defaults to `1`.
-
-      * `:default` - (integer) Default value to use in case the key is not
-        found. Defaults to `0`.
-
-      other options: `:cas`, `:ttl`
-      """
-      @spec incr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
       def incr(server \\ nil, key, opts \\ []) do
         incr_cas(server, key, 0, opts)
       end
 
-      @doc """
-      Increments the current value if the CAS value is equal to the
-      provided value.
-
-      ## Options
-
-      * `:by` - (integer) The amount to add to the existing
-        value. Defaults to `1`.
-
-      * `:default` - (integer) Default value to use in case the key is not
-        found. Defaults to `0`.
-
-      other options: `:cas`, `:ttl`
-      """
-      @spec incr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
       def incr_cas(server \\ nil, key, cas, opts \\ []) do
         defaults = [by: 1, default: 0]
         opts = Keyword.merge(defaults, opts)
         execute_k(server, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
       end
 
-      @doc """
-      Decremens the current value. Only integer value can be
-      decremented. Returns `{ :error, "Incr/Decr on non-numeric value"}` if
-      the value stored in the server is not numeric.
-
-      ## Options
-
-      * `:by` - (integer) The amount to add to the existing
-        value. Defaults to `1`.
-
-      * `:default` - (integer) Default value to use in case the key is not
-        found. Defaults to `0`.
-
-      other options: `:cas`, `:ttl`
-      """
-      @spec decr(GenServer.server, binary, Keyword.t) :: fetch_integer_result
       def decr(server \\ nil, key, opts \\ []) do
         decr_cas(server, key, 0, opts)
       end
 
-      @doc """
-      Decrements the current value if the CAS value is equal to the
-      provided value.
-
-      ## Options
-
-      * `:by` - (integer) The amount to add to the existing
-        value. Defaults to `1`.
-
-      * `:default` - (integer) Default value to use in case the key is not
-        found. Defaults to `0`.
-
-      other options: `:cas`, `:ttl`
-      """
-      @spec decr_cas(GenServer.server, binary, integer, Keyword.t) :: fetch_integer_result
       def decr_cas(server \\ nil, key, cas, opts \\ []) do
         defaults = [by: 1, default: 0]
         opts = Keyword.merge(defaults, opts)
         execute_k(server, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas], opts)
       end
 
-      @doc """
-      Gets the specific set of server statistics
-      """
-      @spec stat(GenServer.server, String.t) :: HashDict.t | error
       def stat(server \\ nil, key \\ []) do
         execute(server, :STAT, key)
       end
 
-      @doc """
-      Gets the version of the server
-      """
-      @spec version(GenServer.server) :: String.t | error
       def version(server \\ nil) do
         execute(server, :VERSION, [])
       end
 
-      @doc """
-      Sends a noop command
-      """
-      @spec noop(GenServer.server) :: {:ok} | error
       def noop(server \\ nil) do
         execute(server, :NOOP, [])
       end
