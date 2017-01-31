@@ -1,4 +1,4 @@
-# Memcache
+# Memcachex
 
 [![Build Status](https://secure.travis-ci.org/ananthakumaran/memcachex.png)](http://travis-ci.org/ananthakumaran/memcachex)
 
@@ -8,28 +8,50 @@ Memcached client for Elixir
 
 ```elixir
 defp deps() do
-  [{:memcachex, "~> 0.2.1"}]
+  ...
+  {:memcachex, "~> 0.2.1"},
+  ...
 end
 
 defp application() do
-  [applications: [:logger, :memcachex]]
+  [applications: [:logger, :memcachex, ...]]
 end
+```
+
+Config with default values:
+
+```elixir
+config :memcachex,
+  # connection options
+  hostname: "localhost",
+  port: 11211,
+  backoff_initial: 500,
+  backoff_max: 30_000,
+  # memcached options
+  ttl: 0,
+  namespace: nil,
+  coder: {Memcache.Coder.Raw, []},
+  # connection pool options
+  strategy: :lifo,
+  size: 10,
+  max_overflow: 10
 ```
 
 ## Overview
 
 Memcachex comes with two kinds of API, a high level one named
-`Memcache` which provides functions to perform most of the common
+`Memcachex` which provides functions to perform most of the common
 usecases and a low level one named `Memcache.Connection` which
 provides a less restrictive API. See the
-[documenation](https://hexdocs.pm/memcachex) for more information
+[documentation](https://hexdocs.pm/memcachex) for more information
 
 ## Example
 
 ```elixir
-{ :ok, pid } = Memcache.start_link()
-{ :ok } = Memcache.set(pid, "hello", "world")
-{ :ok, "world" } = Memcache.get(pid, "hello")
+iex> Memcachex.set("hello", "world")
+{:ok}
+iex> Memcachex.get("hello")
+{:ok, "world"}
 ```
 
 See test folder for further examples.
