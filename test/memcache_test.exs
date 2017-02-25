@@ -85,15 +85,20 @@ defmodule MemcacheTest do
   end
 
   def multi(pid) do
+    cas_error = { :error, "Key exists" }
     assert { :ok } = Memcache.flush(pid)
-    assert { :ok } == Memcache.set(pid, "a", "1")
-    assert { :ok } == Memcache.set(pid, "b", "2")
+    assert { :ok, [{:ok}, {:ok}] } == Memcache.multi_set(pid,[{"a", "1"}, {"b", "2"}])
+    assert { :ok, [{:ok}, {:ok}] } == Memcache.multi_set(pid, %{"a" => "1", "b" => "2"})
     assert { :ok, %{"a" => "1", "b" => "2"}} == Memcache.multi_get(pid, ["a", "b"])
     assert { :ok, %{"a" => "1", "b" => "2"}} == Memcache.multi_get(pid, ["a", "c", "b"])
     assert { :ok, %{"a" => {"1", _}, "b" => {"2", _}}} = Memcache.multi_get(pid, ["a", "b"], [cas: true])
     assert { :ok, %{"a" => {"1", _}, "b" => {"2", _}}} = Memcache.multi_get(pid, ["a", "c", "b"], [cas: true])
     assert { :ok, %{}} == Memcache.multi_get(pid, ["c"])
     assert { :ok, %{"a" => "1"}} == Memcache.multi_get(pid, ["a"])
+    assert { :ok, [{:ok, cas_a}, {:ok, cas_b}] } = Memcache.multi_set(pid, %{"a" => "1", "b" => "2"}, cas: true)
+    assert { :ok, [{:ok}, cas_error] } == Memcache.multi_set_cas(pid, [{"a", "1", cas_a}, {"b", "1", 33}])
+    assert { :ok, [{:ok, _}] } = Memcache.multi_set_cas(pid, [{"b", "1", cas_b}], cas: true)
+    assert { :ok } = Memcache.flush(pid)
   end
 
   test "commands" do
@@ -129,6 +134,8 @@ defmodule MemcacheTest do
 
     assert { :ok } == Memcache.set(pid, "set", "world", ttl: 1)
     assert { :ok } == Memcache.set(pid, "replace", "world")
+    assert { :ok, [{:ok}, {:ok}] } == Memcache.multi_set(pid, %{"a" => "1", "b" => "2"}, ttl: 1)
+    assert { :ok, [{:ok, _}, {:ok, _}] } = Memcache.multi_set(pid, %{"c" => "1", "d" => "2"}, cas: true, ttl: 1)
     assert { :ok } == Memcache.replace(pid, "replace", "world", ttl: 1)
     assert { :ok } == Memcache.add(pid, "add", "world", ttl: 1)
     assert { :ok, 5 } == Memcache.incr(pid, "incr", default: 5, ttl: 1)
@@ -141,6 +148,11 @@ defmodule MemcacheTest do
     assert { :error, "Key not found" } == Memcache.get(pid, "add")
     assert { :error, "Key not found" } == Memcache.get(pid, "incr")
     assert { :error, "Key not found" } == Memcache.get(pid, "decr")
+    assert { :error, "Key not found" } == Memcache.get(pid, "a")
+    assert { :error, "Key not found" } == Memcache.get(pid, "b")
+    assert { :error, "Key not found" } == Memcache.get(pid, "c")
+    assert { :error, "Key not found" } == Memcache.get(pid, "d")
+
 
     assert { :ok } == Memcache.set(pid, "hello", "world")
     assert { :ok } == Memcache.flush(pid, ttl: 2)
@@ -181,6 +193,8 @@ defmodule MemcacheTest do
     assert { :ok } == Memcache.add(pid, "add", "world")
     assert { :ok, 5 } == Memcache.incr(pid, "incr", default: 5)
     assert { :ok, 5 } == Memcache.decr(pid, "decr", default: 5)
+    assert { :ok, [{:ok}, {:ok}] } == Memcache.multi_set(pid, %{"a" => "1", "b" => "2"})
+    assert { :ok, [{:ok, _}, {:ok, _}] } = Memcache.multi_set(pid, %{"c" => "1", "d" => "2"}, cas: true)
 
     :timer.sleep(2000)
 
@@ -189,6 +203,11 @@ defmodule MemcacheTest do
     assert { :error, "Key not found" } == Memcache.get(pid, "add")
     assert { :error, "Key not found" } == Memcache.get(pid, "incr")
     assert { :error, "Key not found" } == Memcache.get(pid, "decr")
+    assert { :error, "Key not found" } == Memcache.get(pid, "a")
+    assert { :error, "Key not found" } == Memcache.get(pid, "b")
+    assert { :error, "Key not found" } == Memcache.get(pid, "c")
+    assert { :error, "Key not found" } == Memcache.get(pid, "d")
+
 
     common(pid)
     assert { :ok } = Memcache.stop(pid)
@@ -223,7 +242,7 @@ defmodule MemcacheTest do
 
     assert { :ok } == Memcache.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
-    assert { :ok } == Memcache.set(pid, "hello", %{ "a" => 1 })
+    assert { :ok, [{:ok}] } == Memcache.multi_set(pid, [{"hello", %{ "a" => 1 }}])
     assert { :ok, %{ "a" => 1 } } == Memcache.get(pid, "hello")
     assert { :ok, %{"hello" => %{ "a" => 1 }} } == Memcache.multi_get(pid, ["hello"])
     assert { :ok } = Memcache.stop(pid)

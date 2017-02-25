@@ -159,7 +159,6 @@ defmodule Memcache do
     end
   end
 
-
   @doc """
   Sets the key to value
 
@@ -179,6 +178,29 @@ defmodule Memcache do
   @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def set_cas(server, key, value, cas, opts \\ []) do
     execute_kv(server, :SET, [key, value, cas, ttl_or_default(server, opts)], opts)
+  end
+
+  @doc """
+  Multi version of `set/4`. Accepts a map or a list of `{key, value}`.
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @spec multi_set(GenServer.server, [{binary, binary}] | map, Keyword.t) :: {:ok, [store_result]} | error
+  def multi_set(server, commands, opts \\ []) do
+    commands = Enum.map(commands, fn {key, value} -> {key, value, 0} end)
+    multi_set_cas(server, commands, opts)
+  end
+
+  @doc """
+  Multi version of `set_cas/4`. Accepts a list of `{key, value, cas}`.
+
+  Accepted options: `:cas`, `:ttl`
+  """
+  @spec multi_set_cas(GenServer.server, [{binary, binary, integer}], Keyword.t) :: {:ok, [store_result]} | error
+  def multi_set_cas(server, commands, opts \\ []) do
+    op = if Keyword.get(opts, :cas, false), do: :SET, else: :SETQ
+    commands = Enum.map(commands, fn {key, value, cas} -> {op, [key, value, cas, ttl_or_default(server, opts)], opts} end)
+    execute_quiet_kv(server, commands)
   end
 
   @cas_error { :error, "Key exists" }
@@ -516,6 +538,14 @@ defmodule Memcache do
   defp execute_quiet_k(server, commands) do
     commands = Enum.map(commands, fn ({command, [key | rest], opts}) ->
       {command, [key_with_namespace(server, key) | rest], opts}
+    end)
+    execute_quiet(server, commands)
+    |> decode_multi_response(server)
+  end
+
+  defp execute_quiet_kv(server, commands) do
+    commands = Enum.map(commands, fn ({command, [key | [value | rest]], opts}) ->
+      {command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts}
     end)
     execute_quiet(server, commands)
     |> decode_multi_response(server)

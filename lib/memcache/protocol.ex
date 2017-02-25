@@ -345,7 +345,7 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:SETQ, opaque, key, value, cas, flag, expiry) do
+  def to_binary(:SETQ, opaque, key, value, cas, expiry, flag) do
     [
       bcat([ request, opb(:SETQ)]),
       << byte_size(key) :: size(16) >>,
@@ -375,7 +375,7 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:ADDQ, opaque, key, value, cas, flag, expiry) do
+  def to_binary(:ADDQ, opaque, key, value, cas, expiry, flag) do
     [
       bcat([ request, opb(:ADDQ)]),
       << byte_size(key) :: size(16) >>,
@@ -405,7 +405,7 @@ defmodule Memcache.Protocol do
     ]
   end
 
-  def to_binary(:REPLACEQ, opaque, key, value, cas, flag, expiry) do
+  def to_binary(:REPLACEQ, opaque, key, value, cas, expiry, flag) do
     [
       bcat([ request, opb(:REPLACEQ)]),
       << byte_size(key) :: size(16) >>,
