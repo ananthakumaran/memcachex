@@ -6,7 +6,7 @@ defmodule Memcache.Mixfile do
   def project do
     [app: :memcachex,
      version: @version,
-     elixir: ">= 1.1.0",
+     elixir: ">= 1.2.0",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      description: "Memcached client",
