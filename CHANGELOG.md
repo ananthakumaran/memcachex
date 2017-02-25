@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## New
+- add support for multi set & get
+
 ## [0.2.1] - 25 July 2016
 
 ### New
