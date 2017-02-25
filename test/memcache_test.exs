@@ -44,8 +44,8 @@ defmodule MemcacheTest do
     assert { :ok, 5 } == Memcache.incr(pid, "count", by: 5)
     assert { :ok, 4 } == Memcache.decr(pid, "count")
     assert { :ok, 2 } == Memcache.decr(pid, "count", by: 2)
-    assert { :ok, _hash } = Memcache.stat(pid)
-    assert { :ok, _settings } = Memcache.stat(pid, "settings")
+    assert { :ok, %{"uptime" => _}} = Memcache.stat(pid)
+    assert { :ok, %{"evictions" => "on"} } = Memcache.stat(pid, "settings")
     assert { :ok, _version } = Memcache.version(pid)
 
     cas_error = { :error, "Key exists" }

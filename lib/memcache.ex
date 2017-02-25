@@ -429,7 +429,7 @@ defmodule Memcache do
   @doc """
   Gets the default set of server statistics
   """
-  @spec stat(GenServer.server) :: HashDict.t | error
+  @spec stat(GenServer.server) :: {:ok, map} | error
   def stat(server) do
     execute(server, :STAT, [])
   end
@@ -437,7 +437,7 @@ defmodule Memcache do
   @doc """
   Gets the specific set of server statistics
   """
-  @spec stat(GenServer.server, String.t) :: HashDict.t | error
+  @spec stat(GenServer.server, String.t) :: {:ok, map} | error
   def stat(server, key) do
     execute(server, :STAT, [key])
   end

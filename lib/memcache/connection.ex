@@ -292,7 +292,7 @@ defmodule Memcache.Connection do
   end
 
   defp recv_response(:STAT, s, _opts) do
-    recv_stat(s, HashDict.new)
+    recv_stat(s, Map.new)
   end
   defp recv_response(_command, s, %{cas: cas}) do
     header = recv_header(s)
@@ -335,7 +335,7 @@ defmodule Memcache.Connection do
   defp recv_stat(s, results) do
     case recv_header(s) |> recv_body(s) do
       { :ok, { :ok, :done }, _ } -> { :ok, { :ok, results }, s }
-      { :ok, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
+      { :ok, { :ok, key, val }, _ } -> recv_stat(s, Map.put(results, key, val))
       err -> err
     end
   end
