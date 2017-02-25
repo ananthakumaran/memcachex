@@ -84,10 +84,23 @@ defmodule MemcacheTest do
     assert { :ok } = Memcache.flush(pid)
   end
 
+  def multi(pid) do
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } == Memcache.set(pid, "a", "1")
+    assert { :ok } == Memcache.set(pid, "b", "2")
+    assert { :ok, %{"a" => "1", "b" => "2"}} == Memcache.multi_get(pid, ["a", "b"])
+    assert { :ok, %{"a" => "1", "b" => "2"}} == Memcache.multi_get(pid, ["a", "c", "b"])
+    assert { :ok, %{"a" => {"1", _}, "b" => {"2", _}}} = Memcache.multi_get(pid, ["a", "b"], [cas: true])
+    assert { :ok, %{"a" => {"1", _}, "b" => {"2", _}}} = Memcache.multi_get(pid, ["a", "c", "b"], [cas: true])
+    assert { :ok, %{}} == Memcache.multi_get(pid, ["c"])
+    assert { :ok, %{"a" => "1"}} == Memcache.multi_get(pid, ["a"])
+  end
+
   test "commands" do
     assert { :ok, pid } = Memcache.start_link()
     common(pid)
     append_prepend(pid)
+    multi(pid)
     assert { :ok } = Memcache.stop(pid)
   end
 
@@ -154,6 +167,7 @@ defmodule MemcacheTest do
 
     common(namespaced)
     append_prepend(namespaced)
+    multi(namespaced)
     assert { :ok } = Memcache.stop(namespaced)
   end
 
@@ -194,6 +208,7 @@ defmodule MemcacheTest do
 
     assert { :ok } == Memcache.set(pid, "hello", ["list", 1])
     assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
+    assert { :ok, %{"hello" => ["list", 1]} } == Memcache.multi_get(pid, ["hello"])
     assert { :ok } = Memcache.stop(pid)
 
     assert { :ok, pid } = Memcache.start_link([coder: {Memcache.Coder.Erlang, [compressed: 9]}])
@@ -210,6 +225,7 @@ defmodule MemcacheTest do
     assert { :ok, ["list", 1] } == Memcache.get(pid, "hello")
     assert { :ok } == Memcache.set(pid, "hello", %{ "a" => 1 })
     assert { :ok, %{ "a" => 1 } } == Memcache.get(pid, "hello")
+    assert { :ok, %{"hello" => %{ "a" => 1 }} } == Memcache.multi_get(pid, ["hello"])
     assert { :ok } = Memcache.stop(pid)
 
     assert { :ok, pid } = Memcache.start_link([coder: {Memcache.Coder.JSON, [keys: :atoms]}])

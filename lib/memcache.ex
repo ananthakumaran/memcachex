@@ -137,6 +137,29 @@ defmodule Memcache do
     execute_k(server, :GET, [key], opts)
   end
 
+
+  @doc """
+  Gets the values associated with the list of keys. Returns a
+  map. Keys that are not found in the server are filtered from the
+  result.
+
+  Accepted option: `:cas`
+  """
+  @spec multi_get(GenServer.server, [binary], Keyword.t) :: {:ok, map} | error
+  def multi_get(server, keys, opts \\ []) do
+    commands = Enum.map(keys, &({:GETQ, [&1], opts}))
+    with {:ok, values} <- execute_quiet_k(server, commands) do
+      result = Enum.zip(keys, values)
+      |> Enum.reduce(%{}, fn
+        ({key, {:ok, value}}, acc) -> Map.put(acc, key, value)
+        ({key, {:ok, value, cas}}, acc) -> Map.put(acc, key, {value, cas})
+        ({_key, {:error, _}}, acc) -> acc
+      end)
+      {:ok, result}
+    end
+  end
+
+
   @doc """
   Sets the key to value
 
@@ -448,6 +471,13 @@ defmodule Memcache do
   end
   defp decode_response(rest, _server), do: rest
 
+
+  defp decode_multi_response({:ok, values}, server) when is_list(values) do
+    {:ok, Enum.map(values, &(decode_response(&1, server)))}
+  end
+  defp decode_multi_response(rest, _server), do: rest
+
+
   defp connection(server) do
     get_option(server, :connection)
   end
@@ -481,5 +511,17 @@ defmodule Memcache do
 
   defp execute(server, command, args, opts \\ []) do
     Connection.execute(connection(server), command, args, opts)
+  end
+
+  defp execute_quiet_k(server, commands) do
+    commands = Enum.map(commands, fn ({command, [key | rest], opts}) ->
+      {command, [key_with_namespace(server, key) | rest], opts}
+    end)
+    execute_quiet(server, commands)
+    |> decode_multi_response(server)
+  end
+
+  defp execute_quiet(server, commands) do
+    Connection.execute_quiet(connection(server), commands)
   end
 end

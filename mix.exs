@@ -12,7 +12,11 @@ defmodule Memcache.Mixfile do
      description: "Memcached client",
      package: package(),
      docs: docs(),
-     dialyzer: [plt_add_deps: :transitive],
+     dialyzer: [
+       plt_add_deps: :transitive,
+       ignore_warnings: ".dialyzer_ignore",
+       flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
+     ],
      deps: deps(Mix.env)]
   end
 
@@ -21,7 +25,7 @@ defmodule Memcache.Mixfile do
   end
 
   def deps(:dev) do
-    [{:ex_doc, "~> 0.12", only: :dev},
+    [{:ex_doc, "~> 0.15.0", only: :dev},
      {:benchfella, "~> 0.3.0", only: :dev},
      {:exprof, "~> 0.2.0", only: :dev},
      {:mcd, github: "EchoTeam/mcd", only: :dev},

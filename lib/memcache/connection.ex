@@ -378,9 +378,6 @@ defmodule Memcache.Connection do
   defp match_response([ { i, _command, _args, _opts } | rest ], results, _header, { i, response }) do
     { rest, [response | results] }
   end
-  defp match_response([ { _i , command, _args, %{cas: true} } | _rest ], _results, _header, _response_with_index) do
-    raise "Can't use #{command} with [cas: true]"
-  end
   defp match_response([ { _i , command, _args, _opts } | rest ], results, header, response_with_index) do
     match_response(rest, [Protocol.quiet_response(command) | results], header, response_with_index)
   end
