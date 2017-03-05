@@ -1,0 +1,9 @@
+version: '2'
+
+services:
+  memcache:
+    image: memcached:alpine
+    ports:
+      - "21211:11211"
+
+

@@ -9,7 +9,7 @@ defmodule Memcache.ConnectionTest do
   @cas_error { :error, "Key exists" }
 
   test "commands" do
-    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     cases = [
              {:FLUSH, [], { :ok }},
              {:GET, ["unknown"], { :error, "Key not found" }},
@@ -75,7 +75,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "cas commands" do
-    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     cases = [
       {:FLUSH, [], [], { :ok }},
       {:GET, ["unknown"], [cas: true], { :error, "Key not found" }},
@@ -140,7 +140,7 @@ defmodule Memcache.ConnectionTest do
 
 
   test "quiet commands" do
-    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     { :ok } = execute(pid, :FLUSH, [])
     { :ok } = execute(pid, :SET, ["new", "hope"])
     cases = [
@@ -285,7 +285,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "quiet cas commands" do
-    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     { :ok } = execute(pid, :FLUSH, [])
     { :ok } = execute(pid, :SET, ["new", "hope"])
 
@@ -418,7 +418,7 @@ defmodule Memcache.ConnectionTest do
 
 
   test "misc commands" do
-    { :ok, pid } = start_link([ hostname: "localhost" ])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     { :ok, _stat } = execute(pid, :STAT, [])
     { :ok, _stat } = execute(pid, :STAT, ["items"])
     { :ok, _stat } = execute(pid, :STAT, ["slabs"])
@@ -429,7 +429,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "named process" do
-    { :ok, pid } = start_link([ hostname: "localhost" ], [name: :memcachex])
+    { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ], [name: :memcachex])
     { :ok } = execute(:memcachex, :SET, ["hello", "world"])
     { :ok, "world" } = execute(:memcachex, :GET, ["hello"])
     { :ok } = close(pid)
@@ -437,7 +437,7 @@ defmodule Memcache.ConnectionTest do
 
   test "continue if auth is not supported" do
     assert capture_log(fn ->
-      { :ok, pid } = start_link([auth: {:plain, "user", "pass"}])
+      { :ok, pid } = start_link([port: 21211, auth: {:plain, "user", "pass"}])
       :timer.sleep(100)
       { :ok } = close(pid)
     end) =~ "Authentication not required"
