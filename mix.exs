@@ -26,9 +26,9 @@ defmodule Memcache.Mixfile do
 
   def deps(:dev) do
     [{:ex_doc, "~> 0.15.0", only: :dev},
-     {:benchfella, "~> 0.3.0", only: :dev},
      {:exprof, "~> 0.2.0", only: :dev},
      {:mcd, github: "EchoTeam/mcd", only: :dev},
+     {:benchee, "~> 0.6", only: :dev},
      {:mix_test_watch, "~> 0.2", only: :dev}] ++ deps()
   end
   def deps(_), do: deps()

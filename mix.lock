@@ -1,6 +1,7 @@
-%{"benchfella": {:hex, :benchfella, "0.3.2", "b9648e77fa8d8b8b9fe8f54293bee63f7de03909b3af6ab22a0e546716a396fb", [:mix], []},
+%{"benchee": {:hex, :benchee, "0.6.0", "c2565506c621ee010e71d05f555e39a1b937e00810e284bc85463a4d4efc4b00", [:mix], [{:deep_merge, "~> 0.1", [hex: :deep_merge, optional: false]}]},
   "connection": {:hex, :connection, "1.0.3", "3145f7416be3df248a4935f24e3221dc467c1e3a158d62015b35bd54da365786", [:mix], []},
   "corman": {:git, "git://github.com/EchoTeam/corman.git", "1c1ae1c0aa97ed1976d9042ac9fb805b51214661", [branch: "master"]},
+  "deep_merge": {:hex, :deep_merge, "0.1.1", "c27866a7524a337b6a039eeb8dd4f17d458fd40fbbcb8c54661b71a22fffe846", [:mix], []},
   "dht_ring": {:git, "git://github.com/EchoTeam/dht_ring.git", "d5b880ad76aefc81547dbb76b48a97a01d52ff41", [branch: "master"]},
   "earmark": {:hex, :earmark, "1.1.1", "433136b7f2e99cde88b745b3a0cfc3fbc81fe58b918a09b40fce7f00db4d8187", [:mix], []},
   "ex_doc": {:hex, :ex_doc, "0.15.0", "e73333785eef3488cf9144a6e847d3d647e67d02bd6fdac500687854dd5c599f", [:mix], [{:earmark, "~> 1.1", [hex: :earmark, optional: false]}]},
