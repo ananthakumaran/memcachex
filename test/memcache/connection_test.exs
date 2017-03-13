@@ -8,6 +8,11 @@ defmodule Memcache.ConnectionTest do
 
   @cas_error { :error, "Key exists" }
 
+  setup do
+    {:ok, _} = Toxiproxy.reset()
+    :ok
+  end
+
   test "commands" do
     { :ok, pid } = start_link([ port: 21211, hostname: "localhost" ])
     cases = [
@@ -441,6 +446,38 @@ defmodule Memcache.ConnectionTest do
       :timer.sleep(100)
       { :ok } = close(pid)
     end) =~ "Authentication not required"
+  end
+
+  test "reconnects automatically" do
+    { :ok, pid } = start_link([port: 21211])
+    down("memcache")
+    :timer.sleep(100)
+    up("memcache")
+    :timer.sleep(1000)
+    { :ok } = execute(pid, :SET, ["hello", "world"])
+    { :ok, "world" } = execute(pid, :GET, ["hello"])
+    { :ok } = close(pid)
+  end
+
+  test "always responds back to client" do
+    { :ok, pid } = start_link([port: 21211])
+    assert {:ok} = execute(pid, :SET, ["hello", "world"])
+    pids = start_hammering(fn ->
+      assert_value_or_error({:ok}, execute(pid, :SET, ["hello", "world"]))
+      assert_value_or_error({:ok, "world"}, execute(pid, :GET, ["hello"]))
+    end, 8)
+    down("memcache")
+    :timer.sleep(100)
+    up("memcache")
+    :timer.sleep(1000)
+    stop_hammering(pids)
+    { :ok } = close(pid)
+  end
+
+  defp assert_value_or_error(value, value), do: true
+  defp assert_value_or_error(_value, {:error, _}), do: true
+  defp assert_value_or_error(value, actual) do
+    flunk("Expected #{inspect(value)} or {:error, closed}\n but got #{inspect(actual)}")
   end
 
   @tag :authentication

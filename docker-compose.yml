@@ -2,8 +2,19 @@ version: '2'
 
 services:
   memcache:
+    container_name: memcache_1
     image: memcached:alpine
     ports:
-      - "21211:11211"
+      - "22211:11211"
+  toxiproxy:
+    build:
+      context: ./docker/toxiproxy
+    environment:
+      PROXIES: "memcache:21211:memcache_1:11211"
+    depends_on:
+      - memcache
+    ports:
+      - "21211:21211"
+      - "8474:8474"
 
 

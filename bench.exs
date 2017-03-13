@@ -18,6 +18,7 @@ setq_query = Enum.map(Range.new(1, 100), fn (_) -> {:SETQ, ["hello", Utils.rando
 {:ok, _} = :mcd.set(mcd, "hello_large", large_blob)
 
 Benchee.run(%{
+  "sleep" => fn -> Process.sleep(100) end,
   "memcachex.GET" => fn -> { :ok, "world" } = Connection.execute(pid, :GET, ["hello"]) end,
   "mcd.GET" => fn -> { :ok, "world" } = :mcd.get(mcd, "hello") end,
   "memcachex.SET" => fn -> { :ok } = Connection.execute(pid, :SET, ["hello", "world"]) end,

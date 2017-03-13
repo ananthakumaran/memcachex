@@ -2,6 +2,11 @@ defmodule MemcacheTest do
   use ExUnit.Case, async: false
   import TestUtils
 
+  setup do
+    {:ok, _} = Toxiproxy.reset()
+    :ok
+  end
+
   doctest Memcache
 
   def append_prepend(pid) do
@@ -256,6 +261,18 @@ defmodule MemcacheTest do
   test "zip coder" do
     assert { :ok, pid } = Memcache.start_link([port: 21211, coder: Memcache.Coder.ZIP])
     common(pid)
+    assert { :ok } = Memcache.stop(pid)
+  end
+
+  test "reconnect" do
+    assert { :ok, pid } = Memcache.start_link(port: 21211)
+    common(pid)
+    down("memcache")
+    :timer.sleep(100)
+    up("memcache")
+    :timer.sleep(1000)
+    append_prepend(pid)
+    multi(pid)
     assert { :ok } = Memcache.stop(pid)
   end
 end

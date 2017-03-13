@@ -7,11 +7,12 @@ defmodule Memcache.Connection do
   use Connection
   alias Memcache.Protocol
   alias Memcache.Utils
+  alias Memcache.Receiver
 
   defmodule State do
     @moduledoc false
 
-    defstruct opts: nil, sock: nil, backoff_current: nil
+    defstruct opts: nil, sock: nil, backoff_current: nil, receiver: nil, receiver_queue: nil
   end
 
   @doc """
@@ -117,7 +118,8 @@ defmodule Memcache.Connection do
   """
   @spec close(GenServer.server) :: {:ok}
   def close(pid) do
-    Connection.call(pid, { :close })
+    :ok = GenServer.stop(pid)
+    {:ok}
   end
 
   def init(opts) do
@@ -131,7 +133,9 @@ defmodule Memcache.Connection do
         _ = if info == :backoff || info == :reconnect do
             Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
           end
-        state = %{s | sock: sock, backoff_current: nil }
+        { :ok, receiver } = Receiver.start_link([sock, self()])
+        receiver_queue = MapSet.new()
+        state = %{s | sock: sock, backoff_current: nil, receiver: receiver, receiver_queue: receiver_queue }
         result = authenticate(state)
         :ok = :inet.setopts(sock, [active: :once])
         result
@@ -142,50 +146,32 @@ defmodule Memcache.Connection do
     end
   end
 
-  def disconnect({ :close, from }, %State{ sock: sock } = state) do
-    if sock do
-      :ok = :gen_tcp.close(sock)
-    end
-    Connection.reply(from, { :ok })
-    {:stop, :normal, %{ state | sock: nil }}
-  end
-
-  def disconnect({:error, reason}, %State{ sock: sock, opts: opts } = s) do
+  def disconnect({ :error, reason }, %State{ opts: opts } = s) do
     _ = Logger.error(["Disconnected from Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
-    if sock do
-      :ok = :gen_tcp.close(sock)
-    end
-    {:connect, :reconnect, %{s | sock: nil, backoff_current: nil}}
+    cleanup(s)
+    {:connect, :reconnect, %{s | sock: nil, backoff_current: nil, receiver: nil, receiver_queue: nil}}
   end
 
   def handle_call({ :execute, _command, _args, _opts }, _from, %State{ sock: nil } = s) do
     {:reply, {:error, :closed}, s}
   end
 
-  def handle_call({ :execute, command, args, opts }, _from, %State{ sock: sock } = s) do
-    :ok = :inet.setopts(sock, [active: false])
-    result = send_and_receive(s, command, args, opts)
-    :ok = :inet.setopts(sock, [active: :once])
-    result
+  def handle_call({ :execute, command, args, opts }, from, s) do
+    maybe_deactivate_sock(s)
+    send_and_receive(s, from, command, args, opts)
   end
 
   def handle_call({ :execute_quiet, _commands }, _from, %State{ sock: nil } = s) do
     {:reply, {:error, :closed}, s}
   end
 
-  def handle_call({ :execute_quiet, commands }, _from, %State{ sock: sock } = s) do
-    :ok = :inet.setopts(sock, [active: false])
-    result = send_and_receive_quiet(s, commands)
-    :ok = :inet.setopts(sock, [active: :once])
-    result
-  end
-
-  def handle_call({ :close }, from, state) do
-    { :disconnect, { :close, from }, state }
+  def handle_call({ :execute_quiet, commands }, from, s) do
+    maybe_deactivate_sock(s)
+    send_and_receive_quiet(s, from, commands)
   end
 
   def handle_info({:tcp_closed, _socket}, state) do
-    error = {:error, :tcp_closed}
+    error = {:error, :closed}
     { :disconnect, error, state }
   end
 
@@ -194,34 +180,85 @@ defmodule Memcache.Connection do
     { :disconnect, error, state }
   end
 
+  def handle_info({:receiver, :disconnect, error}, state) do
+    { :disconnect, error, state }
+  end
+
+  def handle_info({:receiver, :done, client}, state) do
+    receiver_queue = MapSet.delete(state.receiver_queue, client)
+    state = %{state | receiver_queue: receiver_queue}
+    maybe_activate_sock(state)
+    { :noreply, state}
+  end
+
   def handle_info(_msg, state) do
     {:noreply, state}
   end
 
-  def terminate(_reason, %State{ sock: sock }) do
-    if sock do
-      :gen_tcp.close(sock)
-    end
+  def terminate(_reason, state) do
+    cleanup(state)
   end
 
   ## Private ##
 
-  defp send_and_receive(%State{ sock: sock } = s, command, args, opts) do
+  def cleanup(%State{ sock: sock, receiver: receiver, receiver_queue: receiver_queue}) do
+    if sock do
+      :ok = :gen_tcp.close(sock)
+    end
+    if receiver do
+      try do
+        Receiver.stop(receiver)
+      catch
+        :exit, :noproc -> :ok
+      end
+    end
+    if receiver_queue do
+      Enum.each(receiver_queue, fn from ->
+        Connection.reply(from, {:error, :closed})
+      end)
+    end
+    :ok
+  end
+
+  defp maybe_activate_sock(state) do
+    if Enum.empty?(state.receiver_queue) do
+      :ok = :inet.setopts(state.sock, [active: :once])
+    end
+  end
+
+  defp maybe_deactivate_sock(state) do
+    if Enum.empty?(state.receiver_queue) do
+      :ok = :inet.setopts(state.sock, [active: false])
+    end
+  end
+
+  defp send_and_receive(%State{ sock: sock } = s, from, command, args, opts) do
     packet = serialize(command, args)
     case :gen_tcp.send(sock, packet) do
-      :ok -> reply_or_disconnect(recv_response(command, s, opts))
-      { :error, _reason } = error
+      :ok ->
+        s = enqueue_receiver(s, from)
+        :ok = Receiver.read(s.receiver, from, command, opts)
+        {:noreply, s}
+        { :error, _reason } = error
         -> { :disconnect, error, error, s }
     end
   end
 
-  defp send_and_receive_quiet(%State{ sock: sock } = s, commands) do
+  defp send_and_receive_quiet(%State{ sock: sock } = s, from, commands) do
     { packet, commands, i } = Enum.reduce(commands, { [], [], 1 }, &accumulate_commands/2)
     packet = [packet | serialize(:NOOP, [], i)]
     case :gen_tcp.send(sock, packet) do
-      :ok -> reply_or_disconnect(recv_response_quiet(Enum.reverse([ { i, :NOOP, [], [] } | commands]), s, [], <<>>))
+      :ok ->
+        s = enqueue_receiver(s, from)
+        :ok = Receiver.read_quiet(s.receiver, from, Enum.reverse([ { i, :NOOP, [], [] } | commands]))
+        {:noreply, s}
       { :error, _reason } = error -> { :disconnect, error, error, s }
     end
+  end
+
+  defp enqueue_receiver(state, from) do
+    receiver_queue = MapSet.put(state.receiver_queue, from)
+    %{state| receiver_queue: receiver_queue}
   end
 
   defp accumulate_commands({ command, args }, { packet, commands, i }) do
@@ -230,9 +267,6 @@ defmodule Memcache.Connection do
   defp accumulate_commands({ command, args, options }, { packet, commands, i }) do
     { [packet | serialize(command, args, i)], [{ i, command, args, %{cas: Keyword.get(options, :cas, false)}} | commands], i + 1 }
   end
-
-  defp reply_or_disconnect({:ok, response, s}), do: {:reply, response, s}
-  defp reply_or_disconnect({:error, _reason, s} = error), do: {:disconnect, error, error, s}
 
   defp get_backoff(s) do
     if !s.backoff_current do
@@ -259,7 +293,7 @@ defmodule Memcache.Connection do
   defp execute_auth_command(%State{sock: sock} = s, command, args) do
     packet = serialize(command, args)
     case :gen_tcp.send(sock, packet) do
-      :ok -> recv_response(command, s, %{cas: false})
+      :ok -> recv_response(command, s)
       { :error, _reason } -> abort_auth_and_retry(s)
     end
   end
@@ -291,112 +325,11 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp recv_response(:STAT, s, _opts) do
-    recv_stat(s, Map.new)
-  end
-  defp recv_response(_command, s, %{cas: cas}) do
-    header = recv_header(s)
-    response = recv_body(header, s)
-    if cas do
-      case response do
-        { :ok, result, state } ->
-          { :ok, append_cas_version(result, elem(header, 1)), state }
-        error -> error
-      end
-    else
-      response
+  defp recv_response(command, s) do
+    case Receiver.recv_response(command, s.sock, <<>>, %{cas: false}) do
+      {:ok, response, <<>>} -> {:ok, response, s}
+      {:error, reason} -> {:error, reason, s}
     end
-  end
-
-  defp recv_header(%State{ sock: sock } = s) do
-    case :gen_tcp.recv(sock, 24) do
-      { :ok, raw_header } ->
-        { :ok, Protocol.parse_header(raw_header) }
-      { :error, reason } -> { :error, reason, s}
-    end
-  end
-
-  defp recv_body({:error, _, _} = error, _), do: error
-  defp recv_body({:ok, header}, %State{ sock: sock } = s) do
-    body_size = Protocol.total_body_size(header)
-    if body_size > 0 do
-      case :gen_tcp.recv(sock, body_size) do
-        { :ok, body } ->
-          response = Protocol.parse_body(header, body) |> elem(1)
-          { :ok, response, s }
-        { :error, reason } -> { :error, reason, s}
-      end
-    else
-      response = Protocol.parse_body(header, :empty) |> elem(1)
-      { :ok, response, s }
-    end
-  end
-
-  defp recv_stat(s, results) do
-    case recv_header(s) |> recv_body(s) do
-      { :ok, { :ok, :done }, _ } -> { :ok, { :ok, results }, s }
-      { :ok, { :ok, key, val }, _ } -> recv_stat(s, Map.put(results, key, val))
-      err -> err
-    end
-  end
-
-  defp append_cas_version({:ok}, %{cas: cas_version}), do: {:ok, cas_version}
-  defp append_cas_version({:ok, value}, %{cas: cas_version}), do: {:ok, value, cas_version}
-  defp append_cas_version(error, %{cas: _cas_version}), do: error
-
-  defp recv_response_quiet([], s, results, _buffer) do
-    { :ok, { :ok, Enum.reverse(tl(results)) }, s }
-  end
-  defp recv_response_quiet(commands, s, results, buffer) when byte_size(buffer) >= 24 do
-    { header_raw, rest } = cut(buffer, 24)
-    header = Protocol.parse_header(header_raw)
-    body_size = Protocol.total_body_size(header)
-    if body_size > 0 do
-      case read_more_if_needed(s, rest, body_size) do
-        { :ok, buffer } ->
-          { body, rest } = cut(buffer, body_size)
-          { rest_commands, results } = match_response(commands, results, header, Protocol.parse_body(header, body))
-          recv_response_quiet(rest_commands, s, results, rest)
-        err -> err
-      end
-    else
-      { rest_commands, results } = match_response(commands, results, header, Protocol.parse_body(header, :empty))
-      recv_response_quiet(rest_commands, s, results, rest)
-    end
-  end
-
-  defp recv_response_quiet(commands, s, results, buffer) do
-    case read_more_if_needed(s, buffer, 24) do
-      { :ok, buffer } -> recv_response_quiet(commands, s, results, buffer)
-      err -> err
-    end
-  end
-
-  defp match_response([ { i, _command, _args, %{cas: true} } | rest ], results, header, { i, response }) do
-    { rest, [append_cas_version(response, header) | results] }
-  end
-  defp match_response([ { i, _command, _args, _opts } | rest ], results, _header, { i, response }) do
-    { rest, [response | results] }
-  end
-  defp match_response([ { _i , command, _args, _opts } | rest ], results, header, response_with_index) do
-    match_response(rest, [Protocol.quiet_response(command) | results], header, response_with_index)
-  end
-
-  defp read_more_if_needed(_sock, buffer, min_required) when byte_size(buffer) >= min_required do
-    { :ok, buffer }
-  end
-
-  defp read_more_if_needed(%State{ sock: sock } = s, buffer, min_required) do
-    case :gen_tcp.recv(sock, 0) do
-      { :ok, data } -> read_more_if_needed(s, buffer <> data, min_required)
-      { :error, reason } -> { :error, reason, s}
-    end
-  end
-
-  defp cut(bin, at) do
-    first = binary_part(bin, 0, at)
-    rest = binary_part(bin, at, byte_size(bin) - at)
-    { first, rest }
   end
 
   defp serialize(command, args, opaque \\ 0) do

@@ -7,8 +7,6 @@ defmodule Memcache.Mixfile do
     [app: :memcachex,
      version: @version,
      elixir: ">= 1.2.0",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
      description: "Memcached client",
      package: package(),
      docs: docs(),
@@ -17,24 +15,25 @@ defmodule Memcache.Mixfile do
        ignore_warnings: ".dialyzer_ignore",
        flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
      ],
-     deps: deps(Mix.env)]
+     deps: deps()]
   end
 
   def application do
     [applications: [:logger, :connection]]
   end
 
-  def deps(:dev) do
-    [{:ex_doc, "~> 0.15.0", only: :dev},
-     {:exprof, "~> 0.2.0", only: :dev},
-     {:mcd, github: "EchoTeam/mcd", only: :dev},
-     {:benchee, "~> 0.6", only: :dev},
-     {:mix_test_watch, "~> 0.2", only: :dev}] ++ deps()
-  end
-  def deps(_), do: deps()
   def deps() do
-    [{:connection, "~> 1.0.3"},
-     {:poison, "~> 1.5 or ~> 2.0", optional: true}]
+    [
+      {:connection, "~> 1.0.3"},
+      {:poison, "~> 1.5 or ~> 2.0", optional: true},
+
+      {:ex_doc, "~> 0.15.0", only: :dev},
+      {:exprof, "~> 0.2.0", only: :dev},
+      {:mcd, github: "EchoTeam/mcd", only: :dev},
+      {:benchee, "~> 0.6", only: :dev},
+      {:mix_test_watch, "~> 0.2", only: :dev},
+      {:toxiproxy, path: "../toxiproxy-elixir", only: :test}
+    ]
   end
 
   defp package do
