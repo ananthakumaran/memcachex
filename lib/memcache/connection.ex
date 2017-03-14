@@ -210,7 +210,7 @@ defmodule Memcache.Connection do
       try do
         Receiver.stop(receiver)
       catch
-        :exit, :noproc -> :ok
+        :exit, _ -> :ok
       end
     end
     if receiver_queue do
