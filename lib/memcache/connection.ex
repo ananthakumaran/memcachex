@@ -239,8 +239,7 @@ defmodule Memcache.Connection do
         s = enqueue_receiver(s, from)
         :ok = Receiver.read(s.receiver, from, command, opts)
         {:noreply, s}
-        { :error, _reason } = error
-        -> { :disconnect, error, error, s }
+      { :error, _reason } = error -> { :disconnect, error, error, s }
     end
   end
 

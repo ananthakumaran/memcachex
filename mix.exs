@@ -6,7 +6,7 @@ defmodule Memcache.Mixfile do
   def project do
     [app: :memcachex,
      version: @version,
-     elixir: ">= 1.2.0",
+     elixir: ">= 1.3.0",
      description: "Memcached client",
      package: package(),
      docs: docs(),
