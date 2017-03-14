@@ -32,7 +32,7 @@ defmodule Memcache.Mixfile do
       {:mcd, github: "EchoTeam/mcd", only: :dev},
       {:benchee, "~> 0.6", only: :dev},
       {:mix_test_watch, "~> 0.2", only: :dev},
-      {:toxiproxy, path: "../toxiproxy-elixir", only: :test}
+      {:toxiproxy, "~> 0.3", only: :test}
     ]
   end
 
