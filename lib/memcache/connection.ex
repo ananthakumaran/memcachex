@@ -157,8 +157,9 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({ :execute, command, args, opts }, from, s) do
-    maybe_deactivate_sock(s)
-    send_and_receive(s, from, command, args, opts)
+    with :ok <- maybe_deactivate_sock(s) do
+      send_and_receive(s, from, command, args, opts)
+    end
   end
 
   def handle_call({ :execute_quiet, _commands }, _from, %State{ sock: nil } = s) do
@@ -166,8 +167,9 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({ :execute_quiet, commands }, from, s) do
-    maybe_deactivate_sock(s)
-    send_and_receive_quiet(s, from, commands)
+    with :ok <- maybe_deactivate_sock(s) do
+      send_and_receive_quiet(s, from, commands)
+    end
   end
 
   def handle_info({:tcp_closed, _socket}, state) do
@@ -188,7 +190,6 @@ defmodule Memcache.Connection do
     receiver_queue = MapSet.delete(state.receiver_queue, client)
     state = %{state | receiver_queue: receiver_queue}
     maybe_activate_sock(state)
-    { :noreply, state}
   end
 
   def handle_info(_msg, state) do
@@ -222,13 +223,23 @@ defmodule Memcache.Connection do
 
   defp maybe_activate_sock(state) do
     if Enum.empty?(state.receiver_queue) do
-      :ok = :inet.setopts(state.sock, [active: :once])
+      case :inet.setopts(state.sock, [active: :once]) do
+        :ok -> { :noreply, state }
+        error -> { :disconnect, error, state }
+      end
+    else
+      { :noreply, state }
     end
   end
 
   defp maybe_deactivate_sock(state) do
     if Enum.empty?(state.receiver_queue) do
-      :ok = :inet.setopts(state.sock, [active: false])
+      case :inet.setopts(state.sock, [active: false]) do
+        :ok -> :ok
+        error -> { :disconnect, error, {:error, :closed}, state }
+      end
+    else
+      :ok
     end
   end
 
