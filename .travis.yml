@@ -32,4 +32,5 @@ before_install:
 script:
   - docker-compose -v
   - docker-compose up -d
+  - sleep 30
   - mix test --trace --exclude authentication
