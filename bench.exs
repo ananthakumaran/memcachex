@@ -13,7 +13,7 @@ end
 large_blob = Utils.random_string()
 { :ok } = Connection.execute(pid, :SET, ["hello_large", large_blob])
 getq_query = Enum.map(Range.new(1, 100), fn (_) -> {:GETQ, ["hello"]} end)
-setq_query = Enum.map(Range.new(1, 100), fn (_) -> {:SETQ, ["hello", Utils.random_string()]} end)
+setq_query = Enum.map(Range.new(1, 100), fn (_) -> {:SETQ, ["hello_large", Utils.random_string()]} end)
 
 {:ok, _} = :mcd.set(mcd, "hello", "world")
 {:ok, _} = :mcd.set(mcd, "hello_large", large_blob)
