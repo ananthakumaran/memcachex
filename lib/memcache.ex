@@ -72,6 +72,7 @@ defmodule Memcache do
   error
 
   alias Memcache.Connection
+  alias Memcache.Registry
 
   @default_opts [
     ttl: 0,
@@ -110,10 +111,10 @@ defmodule Memcache do
     connection_options = Keyword.merge(@default_opts, connection_options)
     |> Keyword.update!(:coder, &normalize_coder/1)
     state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
-    Agent.start_link(fn ->
-      {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
-      Map.put(state, :connection, pid)
-    end, options)
+    {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
+    state = Map.put(state, :connection, pid)
+    Registry.associate(pid, state)
+    {:ok, pid}
   end
 
   @doc """
@@ -121,9 +122,7 @@ defmodule Memcache do
   """
   @spec stop(GenServer.server) :: {:ok}
   def stop(server) do
-    result = Connection.close(connection(server))
-    :ok = Agent.stop(server)
-    result
+    Connection.close(server)
   end
 
   @doc """
@@ -458,18 +457,10 @@ defmodule Memcache do
     execute(server, :NOOP, [])
   end
 
-  @doc """
-  Gets the pid of the `Memcache.Connection` process. Can be used to
-  call functions in `Memcache.Connection`
-  """
-  @spec connection_pid(GenServer.server) :: pid
-  def connection_pid(server) do
-    connection(server)
-  end
-
   ## Private
   defp get_option(server, option) do
-    Agent.get(server, &(Map.get(&1, option)))
+    Registry.lookup(server)
+    |> Map.get(option)
   end
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
@@ -499,11 +490,6 @@ defmodule Memcache do
   end
   defp decode_multi_response(rest, _server), do: rest
 
-
-  defp connection(server) do
-    get_option(server, :connection)
-  end
-
   defp ttl_or_default(server, opts) do
     if Keyword.has_key?(opts, :ttl) do
       opts[:ttl]
@@ -532,7 +518,7 @@ defmodule Memcache do
   end
 
   defp execute(server, command, args, opts \\ []) do
-    Connection.execute(connection(server), command, args, opts)
+    Connection.execute(server, command, args, opts)
   end
 
   defp execute_quiet_k(server, commands) do
@@ -552,6 +538,6 @@ defmodule Memcache do
   end
 
   defp execute_quiet(server, commands) do
-    Connection.execute_quiet(connection(server), commands)
+    Connection.execute_quiet(server, commands)
   end
 end

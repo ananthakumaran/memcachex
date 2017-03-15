@@ -19,7 +19,8 @@ defmodule Memcache.Mixfile do
   end
 
   def application do
-    [applications: [:logger, :connection]]
+    [applications: [:logger, :connection],
+     mod: {Memcache.Application, []}]
   end
 
   def deps() do

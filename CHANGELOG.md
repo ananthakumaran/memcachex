@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### New
+- Uses a separate process to read response from the server. This would
+  lead to increased throughput if same connection was accessed from
+  different process concurrently.
+
+### Breaking
+- Removed Memcache.connection_pid. It was a mistake to expose the
+  underlying connection id, as it creates problems for future
+  additions like pool and cluster.
+
 ## [0.3.0] - 25 Feb 2017
 
 ### New

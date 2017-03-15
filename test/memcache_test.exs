@@ -114,6 +114,14 @@ defmodule MemcacheTest do
     assert { :ok } = Memcache.stop(pid)
   end
 
+  test "named" do
+    assert { :ok, _pid } = Memcache.start_link([port: 21211], [name: :mem])
+    common(:mem)
+    append_prepend(:mem)
+    multi(:mem)
+    assert { :ok } = Memcache.stop(:mem)
+  end
+
   test "cas" do
     assert { :ok, pid } = Memcache.start_link(port: 21211)
     assert { :ok } == Memcache.set(pid, "counter", "0")
@@ -216,14 +224,6 @@ defmodule MemcacheTest do
 
     common(pid)
     assert { :ok } = Memcache.stop(pid)
-  end
-
-  test "server and connection are linked" do
-    assert_exit(fn ->
-      assert { :ok, server } = Memcache.start_link(port: 21211)
-      connection = Memcache.connection_pid(server)
-      Process.exit(connection, :kill)
-    end, :killed)
   end
 
   test "erlang coder" do
