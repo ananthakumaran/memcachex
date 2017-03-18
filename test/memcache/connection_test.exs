@@ -483,7 +483,7 @@ defmodule Memcache.ConnectionTest do
   @tag :authentication
   test "fail on unsupported auth type" do
     assert_exit(fn ->
-      { :ok, pid } = start_link([port: 9494, auth: {:ldap, "user", "pass"}])
+      { :ok, pid } = start_link([port: 9494, auth: {:ldap, "user@example.com", "pass"}])
       :timer.sleep(100)
       { :ok } = close(pid)
     end, ~r/only supports :plain/)
@@ -491,7 +491,7 @@ defmodule Memcache.ConnectionTest do
 
   @tag :authentication
   test "plain auth" do
-    { :ok, pid } = start_link([port: 9494, auth: {:plain, "user", "pass"}])
+    { :ok, pid } = start_link([port: 9494, auth: {:plain, "user@example.com", "pass"}])
     { :ok } = execute(pid, :NOOP, [])
     { :ok } = close(pid)
   end
@@ -499,7 +499,7 @@ defmodule Memcache.ConnectionTest do
   @tag :authentication
   test "invalid password" do
     assert_exit(fn ->
-      { :ok, pid } = start_link([port: 9494, auth: {:plain, "user", "ps"}])
+      { :ok, pid } = start_link([port: 9494, auth: {:plain, "user@example.com", "ps"}])
       :timer.sleep(100)
       { :ok } = close(pid)
     end, ~r/auth.*not.*successful/i)

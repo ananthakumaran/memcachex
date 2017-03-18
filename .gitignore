@@ -6,5 +6,4 @@ bench/snapshots
 bench/graphs
 doc
 protocol.txt
-docker/sasl
 benchmark.rb

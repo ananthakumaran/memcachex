@@ -6,6 +6,12 @@ services:
     image: memcached:alpine
     ports:
       - "22211:11211"
+  memcache_sasl:
+    container_name: memcache_sasl
+    build:
+      context: ./docker/sasl
+    ports:
+      - "9494:11211"
   toxiproxy:
     build:
       context: ./docker/toxiproxy
