@@ -181,17 +181,18 @@ defmodule Memcache.Connection do
     { :disconnect, error, state }
   end
 
-  def handle_info({:receiver, :disconnect, error}, state) do
+  def handle_info({:receiver, :disconnect, error, receiver}, %State{receiver: receiver} = state) do
     { :disconnect, error, state }
   end
 
-  def handle_info({:receiver, :done, client}, state) do
+  def handle_info({:receiver, :done, client, receiver}, %State{receiver: receiver} = state) do
     receiver_queue = MapSet.delete(state.receiver_queue, client)
     state = %{state | receiver_queue: receiver_queue}
     maybe_activate_sock(state)
   end
 
-  def handle_info(_msg, state) do
+  def handle_info(msg, state) do
+    _ = Logger.warn(["Unknown message: ", inspect(msg)])
     {:noreply, state}
   end
 

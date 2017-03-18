@@ -39,11 +39,11 @@ defmodule Memcache.Receiver do
 
   defp reply_or_disconnect({:ok, response, buffer}, client, s) do
     Connection.reply(client, response)
-    send(s.parent, {:receiver, :done, client})
+    send(s.parent, {:receiver, :done, client, self()})
     {:noreply, %{s | buffer: buffer}}
   end
   defp reply_or_disconnect(error, _client, s) do
-    send(s.parent, {:receiver, :disconnect, error})
+    send(s.parent, {:receiver, :disconnect, error, self()})
     {:stop, :normal, s}
   end
 
