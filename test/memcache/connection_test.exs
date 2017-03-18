@@ -90,7 +90,7 @@ defmodule Memcache.ConnectionTest do
       {:SET, ["hello", "world", :cas], [cas: true], @cas_error},
       {:GET, ["hello"], [cas: true], { :ok, "another", :cas }},
       {:SET, ["hello", "world", :cas], [cas: true], { :ok, :cas }},
-      {:SET, ["hello", "move on"], [], { :ok }},
+      {:SET, ["hello", "move on", :cas], [], { :ok }},
       {:GET, ["hello"], [], { :ok, "move on" }},
       {:ADD, ["add", "world"], [cas: true], { :ok, :cas }},
       {:DELETE, ["add", :cas], [], { :ok }},
