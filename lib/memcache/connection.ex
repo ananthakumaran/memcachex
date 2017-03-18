@@ -128,7 +128,7 @@ defmodule Memcache.Connection do
 
   def connect(info, %State{opts: opts} = s) do
     sock_opts = [:binary, active: false, packet: :raw]
-    case :gen_tcp.connect(opts[:hostname], opts[:port], sock_opts) do
+    case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, s) do
       { :ok, sock } ->
         _ = if info == :backoff || info == :reconnect do
             Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
@@ -136,13 +136,12 @@ defmodule Memcache.Connection do
         { :ok, receiver } = Receiver.start_link([sock, self()])
         receiver_queue = MapSet.new()
         state = %{s | sock: sock, backoff_current: nil, receiver: receiver, receiver_queue: receiver_queue }
-        result = authenticate(state)
-        :ok = :inet.setopts(sock, [active: :once])
-        result
+        { :ok, state }
       { :error, reason } ->
-        _ = Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason)])
         backoff = get_backoff(s)
+        _ = Logger.error(["Failed to connect to Memcache (", Utils.format_host(opts), "): ", Utils.format_error(reason), ". Sleeping for ", to_string(backoff), "ms."])
         { :backoff, backoff, %{s | backoff_current: backoff} }
+      { :stop, reason } -> { :stop, reason, s }
     end
   end
 
@@ -286,59 +285,69 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp authenticate(%State{ opts: opts } = s) do
-    case opts[:auth] do
-      nil -> {:ok, s}
-      {:plain, username, password} -> auth_plain(s, username, password)
-      _ -> {:stop, "Memcachex client only supports :plain authentication type", s}
+  defp connect_and_authenticate(host, port, sock_opts, state) do
+    case :gen_tcp.connect(host, port, sock_opts) do
+      {:ok, sock} ->
+        with {:ok} <- authenticate(sock, state.opts),
+             # Make sure the socket is usable
+             {:ok, _} <- execute_command(sock, :NOOP, []),
+             :ok <- :inet.setopts(sock, [active: :once]) do
+          {:ok, sock}
+        else
+          error ->
+            :gen_tcp.close(sock)
+            error
+        end
+      error -> error
     end
   end
 
-  defp abort_auth_and_retry(%State{sock: sock} = s) do
-    :ok = :gen_tcp.close(sock)
-    backoff = get_backoff(s)
-    { :backoff, backoff, %{s | backoff_current: backoff, sock: nil} }
+  defp authenticate(sock, opts) do
+    case opts[:auth] do
+      nil -> {:ok}
+      {:plain, username, password} -> auth_plain(sock, username, password)
+      _ -> {:stop, "Memcachex client only supports :plain authentication type"}
+    end
   end
 
-  defp execute_auth_command(%State{sock: sock} = s, command, args) do
+  defp execute_command(sock, command, args) do
     packet = serialize(command, args)
     case :gen_tcp.send(sock, packet) do
-      :ok -> recv_response(command, s)
-      { :error, _reason } -> abort_auth_and_retry(s)
+      :ok -> recv_response(sock, command)
+      error -> error
     end
   end
 
-  defp auth_plain(%State{} = s, username, password) do
-    case execute_auth_command(s, :AUTH_LIST, []) do
-      {:ok, {:ok, list}, s} ->
+  defp auth_plain(sock, username, password) do
+    case execute_command(sock, :AUTH_LIST, []) do
+      {:ok, {:ok, list}} ->
         supported = String.split(list, " ")
         if !Enum.member?(supported, "PLAIN") do
-          {:stop, "Server doesn't support PLAIN authentication", s}
+          {:stop, "Server doesn't support PLAIN authentication"}
         else
-          auth_plain_continue(s, username, password)
+          auth_plain_continue(sock, username, password)
         end
-      {:ok, {:error, "Unknown command"}, s} ->
+      {:ok, {:error, "Unknown command"}} ->
         _ = Logger.warn "Authentication not required/supported by server"
-        {:ok, s}
-      {:ok, {:error, reason}, s} -> {:stop, reason, s}
-      {:error, _reason, s} -> abort_auth_and_retry(s)
+        {:ok}
+      {:ok, {:error, reason}} -> {:stop, reason}
+      error -> error
     end
   end
 
-  defp auth_plain_continue(s, username, password) do
-    case execute_auth_command(s, :AUTH_START, ["PLAIN", "\0#{username}\0#{password}"]) do
-      {:ok, {:ok}, s} ->
-        {:ok, s}
-      {:ok, {:error, reason}, s} ->
-        {:stop, reason, s}
-      {:error, _reason, s} -> abort_auth_and_retry(s)
+  defp auth_plain_continue(sock, username, password) do
+    case execute_command(sock, :AUTH_START, ["PLAIN", "\0#{username}\0#{password}"]) do
+      {:ok, {:ok}} -> {:ok}
+      {:ok, {:error, reason}} ->
+        {:stop, reason}
+      error -> error
     end
   end
 
-  defp recv_response(command, s) do
-    case Receiver.recv_response(command, s.sock, <<>>, %{cas: false}) do
-      {:ok, response, <<>>} -> {:ok, response, s}
-      {:error, reason} -> {:error, reason, s}
+  defp recv_response(sock, command) do
+    case Receiver.recv_response(command, sock, <<>>, %{cas: false}) do
+      {:ok, response, <<>>} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
     end
   end
 

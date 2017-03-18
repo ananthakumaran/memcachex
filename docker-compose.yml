@@ -4,23 +4,20 @@ services:
   memcache:
     container_name: memcache_1
     image: memcached:alpine
-    ports:
-      - "22211:11211"
   memcache_sasl:
     container_name: memcache_sasl
     build:
       context: ./docker/sasl
-    ports:
-      - "9494:11211"
   toxiproxy:
     build:
       context: ./docker/toxiproxy
     environment:
-      PROXIES: "memcache:21211:memcache_1:11211"
+      PROXIES: "memcache:21211:memcache_1:11211,memcache_sasl:9494:memcache_sasl:11211"
     depends_on:
       - memcache
     ports:
       - "21211:21211"
+      - "9494:9494"
       - "8474:8474"
 
 

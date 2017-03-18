@@ -497,6 +497,19 @@ defmodule Memcache.ConnectionTest do
   end
 
   @tag :authentication
+  test "reconnects automatically with auth" do
+    { :ok, pid } = start_link([port: 9494, auth: {:plain, "user@example.com", "pass"}])
+    down("memcache_sasl")
+    :timer.sleep(100)
+    up("memcache_sasl")
+    :timer.sleep(1000)
+    { :ok } = execute(pid, :SET, ["hello", "world"])
+    { :ok, "world" } = execute(pid, :GET, ["hello"])
+    { :ok } = close(pid)
+  end
+
+
+  @tag :authentication
   test "invalid password" do
     assert_exit(fn ->
       { :ok, pid } = start_link([port: 9494, auth: {:plain, "user@example.com", "ps"}])

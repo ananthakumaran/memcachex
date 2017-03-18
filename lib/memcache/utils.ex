@@ -17,7 +17,7 @@ defmodule Memcache.Utils do
   end
 
   def format_host(opts) do
-    "#{opts[:host]}:#{opts[:port]}"
+    "#{opts[:hostname]}:#{opts[:port]}"
   end
 
   def next_backoff(current, backoff_max) do
