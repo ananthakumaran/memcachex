@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 20 Mar 2017
+
 ### New
 - Uses a separate process to read response from the server. This would
   lead to increased throughput if same connection was accessed from
