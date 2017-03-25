@@ -176,7 +176,8 @@ defmodule Memcache do
   """
   @spec set_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def set_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :SET, [key, value, cas, ttl_or_default(server, opts)], opts)
+    server_options = get_server_options(server)
+    execute_kv(server, :SET, [key, value, cas, ttl_or_default(server_options, opts)], opts, server_options)
   end
 
   @doc """
@@ -198,8 +199,9 @@ defmodule Memcache do
   @spec multi_set_cas(GenServer.server, [{binary, binary, integer}], Keyword.t) :: {:ok, [store_result]} | error
   def multi_set_cas(server, commands, opts \\ []) do
     op = if Keyword.get(opts, :cas, false), do: :SET, else: :SETQ
-    commands = Enum.map(commands, fn {key, value, cas} -> {op, [key, value, cas, ttl_or_default(server, opts)], opts} end)
-    execute_quiet_kv(server, commands)
+    server_options = get_server_options(server)
+    commands = Enum.map(commands, fn {key, value, cas} -> {op, [key, value, cas, ttl_or_default(server_options, opts)], opts} end)
+    execute_quiet_kv(server, commands, server_options)
   end
 
   @cas_error { :error, "Key exists" }
@@ -243,7 +245,8 @@ defmodule Memcache do
   """
   @spec add(GenServer.server, binary, binary, Keyword.t) :: store_result
   def add(server, key, value, opts \\ []) do
-    execute_kv(server, :ADD, [key, value, ttl_or_default(server, opts)], opts)
+    server_options = get_server_options(server)
+    execute_kv(server, :ADD, [key, value, ttl_or_default(server_options, opts)], opts, server_options)
   end
 
   @doc """
@@ -265,7 +268,8 @@ defmodule Memcache do
   """
   @spec replace_cas(GenServer.server, binary, binary, integer, Keyword.t) :: store_result
   def replace_cas(server, key, value, cas, opts \\ []) do
-    execute_kv(server, :REPLACE, [key, value, cas, ttl_or_default(server, opts)], opts)
+    server_options = get_server_options(server)
+    execute_kv(server, :REPLACE, [key, value, cas, ttl_or_default(server_options, opts)], opts, server_options)
   end
 
   @doc """
@@ -381,7 +385,8 @@ defmodule Memcache do
   def incr_cas(server, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute_k(server, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server, opts)], opts)
+    server_options = get_server_options(server)
+    execute_k(server, :INCREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server_options, opts)], opts, server_options)
   end
 
   @doc """
@@ -422,7 +427,8 @@ defmodule Memcache do
   def decr_cas(server, key, cas, opts \\ []) do
     defaults = [by: 1, default: 0]
     opts = Keyword.merge(defaults, opts)
-    execute_k(server, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server, opts)], opts)
+    server_options = get_server_options(server)
+    execute_k(server, :DECREMENT, [key, Keyword.get(opts, :by), Keyword.get(opts, :default), cas, ttl_or_default(server_options, opts)], opts, server_options)
   end
 
   @doc """
@@ -458,48 +464,47 @@ defmodule Memcache do
   end
 
   ## Private
-  defp get_option(server, option) do
+  defp get_server_options(server) do
     Registry.lookup(server)
-    |> Map.get(option)
   end
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
   defp normalize_coder(module) when is_atom(module), do: {module, []}
 
-  defp encode(server, value) do
-    coder = get_option(server, :coder)
+  defp encode(server_options, value) do
+    coder = server_options.coder
     apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
   end
 
-  defp decode(server, value) do
-    coder = get_option(server, :coder)
+  defp decode(server_options, value) do
+    coder = server_options.coder
     apply(elem(coder, 0), :decode, [value, elem(coder, 1)])
   end
 
-  defp decode_response({:ok, value}, server) when is_binary(value) do
-    {:ok, decode(server, value)}
+  defp decode_response({:ok, value}, server_options) when is_binary(value) do
+    {:ok, decode(server_options, value)}
   end
-  defp decode_response({:ok, value, cas}, server) when is_binary(value) do
-    {:ok, decode(server, value), cas}
+  defp decode_response({:ok, value, cas}, server_options) when is_binary(value) do
+    {:ok, decode(server_options, value), cas}
   end
-  defp decode_response(rest, _server), do: rest
+  defp decode_response(rest, _server_options), do: rest
 
 
-  defp decode_multi_response({:ok, values}, server) when is_list(values) do
-    {:ok, Enum.map(values, &(decode_response(&1, server)))}
+  defp decode_multi_response({:ok, values}, server_options) when is_list(values) do
+    {:ok, Enum.map(values, &(decode_response(&1, server_options)))}
   end
-  defp decode_multi_response(rest, _server), do: rest
+  defp decode_multi_response(rest, _server_options), do: rest
 
-  defp ttl_or_default(server, opts) do
+  defp ttl_or_default(server_options, opts) do
     if Keyword.has_key?(opts, :ttl) do
       opts[:ttl]
     else
-      get_option(server, :ttl)
+      server_options.ttl
     end
   end
 
-  defp key_with_namespace(server, key) do
-    namespace = get_option(server, :namespace)
+  defp key_with_namespace(server_options, key) do
+    namespace = server_options.namespace
     if namespace do
       "#{namespace}:#{key}"
     else
@@ -507,34 +512,37 @@ defmodule Memcache do
     end
   end
 
-  defp execute_k(server, command, [key | rest], opts \\ []) do
-    execute(server, command, [key_with_namespace(server, key) | rest], opts)
-    |> decode_response(server)
+  defp execute_k(server, command, args, opts \\ []), do: execute_k(server, command, args, opts, get_server_options(server))
+  defp execute_k(server, command, [key | rest], opts, server_options) do
+    execute(server, command, [key_with_namespace(server_options, key) | rest], opts)
+    |> decode_response(server_options)
   end
 
-  defp execute_kv(server, command, [key | [value | rest]], opts) do
-    execute(server, command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts)
-    |> decode_response(server)
+  defp execute_kv(server, command, args, opts), do: execute_kv(server, command, args, opts, get_server_options(server))
+  defp execute_kv(server, command, [key | [value | rest]], opts, server_options) do
+    execute(server, command, [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]], opts)
+    |> decode_response(server_options)
   end
 
   defp execute(server, command, args, opts \\ []) do
     Connection.execute(server, command, args, opts)
   end
 
-  defp execute_quiet_k(server, commands) do
+  defp execute_quiet_k(server, commands), do: execute_quiet_k(server, commands, get_server_options(server))
+  defp execute_quiet_k(server, commands, server_options) do
     commands = Enum.map(commands, fn ({command, [key | rest], opts}) ->
-      {command, [key_with_namespace(server, key) | rest], opts}
+      {command, [key_with_namespace(server_options, key) | rest], opts}
     end)
     execute_quiet(server, commands)
-    |> decode_multi_response(server)
+    |> decode_multi_response(server_options)
   end
 
-  defp execute_quiet_kv(server, commands) do
+  defp execute_quiet_kv(server, commands, server_options) do
     commands = Enum.map(commands, fn ({command, [key | [value | rest]], opts}) ->
-      {command, [key_with_namespace(server, key) | [encode(server, value) | rest]], opts}
+      {command, [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]], opts}
     end)
     execute_quiet(server, commands)
-    |> decode_multi_response(server)
+    |> decode_multi_response(server_options)
   end
 
   defp execute_quiet(server, commands) do
