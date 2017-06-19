@@ -196,6 +196,27 @@ defmodule MemcacheTest do
     assert { :ok } = Memcache.stop(namespaced)
   end
 
+  test "dynamic namespace" do
+    namespace = {Test.Namespacer, :call}
+
+    assert { :ok, namespaced } = Memcache.start_link([port: 21211, namespace: namespace])
+    assert { :ok, pid } = Memcache.start_link(port: 21211)
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } == Memcache.set(namespaced, "hello", "world")
+    assert { :error, "Key not found" } == Memcache.get(pid, "hello")
+    assert { :ok, "world" } == Memcache.get(namespaced, "hello")
+    assert { :ok, "world" } == Memcache.get(pid, "app:hello")
+    assert { :ok } == Memcache.delete(namespaced, "hello")
+    assert { :error, "Key not found" } == Memcache.get(namespaced, "hello")
+    assert { :ok } = Memcache.flush(pid)
+    assert { :ok } = Memcache.stop(pid)
+
+    common(namespaced)
+    append_prepend(namespaced)
+    multi(namespaced)
+    assert { :ok } = Memcache.stop(namespaced)
+  end
+
   test "default ttl" do
     assert { :ok, pid } = Memcache.start_link([port: 21211, ttl: 1])
     assert { :ok } == Memcache.flush(pid)

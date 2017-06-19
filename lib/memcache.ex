@@ -93,8 +93,9 @@ defmodule Memcache do
     value will be used if the `:ttl` value is not specified for a
     operation. Defaults to `0`(means forever).
 
-  * `:namespace` - (string) prepend each key with the given
-    value.
+  * `:namespace` - (string | {module, function}) prepend each key with the given
+    value. If given a module and function, the function recieves the key to be
+    namespaced as an argument.
 
   * `:coder` - (module | {module, options}) Can be either a module or
     tuple contains the module and options. Defaults to
@@ -504,11 +505,13 @@ defmodule Memcache do
   end
 
   defp key_with_namespace(server_options, key) do
-    namespace = server_options.namespace
-    if namespace do
-      "#{namespace}:#{key}"
-    else
-      key
+    case server_options.namespace do
+      nil -> key
+      {module, function} ->
+        namespace = apply(module, function, [key])
+        "#{namespace}:#{key}"
+      namespace ->
+        "#{namespace}:#{key}"
     end
   end
 
