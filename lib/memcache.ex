@@ -77,6 +77,7 @@ defmodule Memcache do
   @default_opts [
     ttl: 0,
     namespace: nil,
+    key_coder: nil,
     coder: {Memcache.Coder.Raw, []}
   ]
 
@@ -93,8 +94,10 @@ defmodule Memcache do
     value will be used if the `:ttl` value is not specified for a
     operation. Defaults to `0`(means forever).
 
-  * `:namespace` - (string) prepend each key with the given
-    value.
+  * `:namespace` - (string) prepend each key with the given value.
+
+  * `:key_coder` - ({module, function}) Used to transform the key completely.
+    The function needs to accept one argument, the key and return a new key.
 
   * `:coder` - (module | {module, options}) Can be either a module or
     tuple contains the module and options. Defaults to
@@ -107,7 +110,7 @@ defmodule Memcache do
   """
   @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
   def start_link(connection_options \\ [], options \\ []) do
-    extra_opts = [:ttl, :namespace, :coder]
+    extra_opts = [:ttl, :namespace, :key_coder, :coder]
     connection_options = Keyword.merge(@default_opts, connection_options)
     |> Keyword.update!(:coder, &normalize_coder/1)
     state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
@@ -503,12 +506,16 @@ defmodule Memcache do
     end
   end
 
+  # This takes care of both namespacing and key coding.
   defp key_with_namespace(server_options, key) do
-    namespace = server_options.namespace
-    if namespace do
-      "#{namespace}:#{key}"
-    else
-      key
+    key = case server_options.namespace do
+      nil -> key
+      namespace -> "#{namespace}:#{key}"
+    end
+
+    case server_options.key_coder do
+      {module, function} -> apply(module, function, [key])
+      _ -> key
     end
   end
 
