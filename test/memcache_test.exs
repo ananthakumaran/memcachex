@@ -196,25 +196,25 @@ defmodule MemcacheTest do
     assert { :ok } = Memcache.stop(namespaced)
   end
 
-  test "dynamic namespace" do
-    namespace = {Test.Namespacer, :call}
+  test "key coder" do
+    key_coder = {Test.KeyCoder, :call}
 
-    assert { :ok, namespaced } = Memcache.start_link([port: 21211, namespace: namespace])
+    assert { :ok, coded } = Memcache.start_link([port: 21211, key_coder: key_coder])
     assert { :ok, pid } = Memcache.start_link(port: 21211)
     assert { :ok } = Memcache.flush(pid)
-    assert { :ok } == Memcache.set(namespaced, "hello", "world")
+    assert { :ok } == Memcache.set(coded, "hello", "world")
     assert { :error, "Key not found" } == Memcache.get(pid, "hello")
-    assert { :ok, "world" } == Memcache.get(namespaced, "hello")
+    assert { :ok, "world" } == Memcache.get(coded, "hello")
     assert { :ok, "world" } == Memcache.get(pid, "app:hello")
-    assert { :ok } == Memcache.delete(namespaced, "hello")
-    assert { :error, "Key not found" } == Memcache.get(namespaced, "hello")
+    assert { :ok } == Memcache.delete(coded, "hello")
+    assert { :error, "Key not found" } == Memcache.get(coded, "hello")
     assert { :ok } = Memcache.flush(pid)
     assert { :ok } = Memcache.stop(pid)
 
-    common(namespaced)
-    append_prepend(namespaced)
-    multi(namespaced)
-    assert { :ok } = Memcache.stop(namespaced)
+    common(coded)
+    append_prepend(coded)
+    multi(coded)
+    assert { :ok } = Memcache.stop(coded)
   end
 
   test "default ttl" do
