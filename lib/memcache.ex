@@ -110,13 +110,24 @@ defmodule Memcache do
   """
   @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
   def start_link(connection_options \\ [], options \\ []) do
-    extra_opts = [:ttl, :namespace, :key_coder, :coder]
-    connection_options = Keyword.merge(@default_opts, connection_options)
-    |> Keyword.update!(:coder, &normalize_coder/1)
-    state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
-    {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
+    memcache_options = [:ttl, :namespace, :key_coder]
+    shared_options = [:coder]
+
+    connection_options = @default_opts
+      |> Keyword.merge(connection_options)
+      |> Keyword.update!(:coder, &normalize_coder/1)
+
+    state = connection_options
+      |> Keyword.take(memcache_options ++ shared_options)
+      |> Enum.into(%{})
+
+    connection_options = Keyword.drop(connection_options, memcache_options)
+
+    {:ok, pid} = Connection.start_link(connection_options, options)
+
     state = Map.put(state, :connection, pid)
     Registry.associate(pid, state)
+    
     {:ok, pid}
   end
 
