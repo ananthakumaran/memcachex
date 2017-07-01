@@ -54,9 +54,7 @@ defmodule Memcache.Connection do
   """
   @spec start_link(Keyword.t, Keyword.t) :: GenServer.on_start
   def start_link(connection_options \\ [], options \\ []) do
-    connection_options = connection_options
-      |> with_defaults
-      |> with_flags
+    connection_options = with_defaults(connection_options)
     Connection.start_link(__MODULE__, connection_options, options)
   end
 
@@ -70,19 +68,6 @@ defmodule Memcache.Connection do
   defp with_defaults(opts) do
     Keyword.merge(@default_opts, opts)
     |> Keyword.update!(:hostname, (&if is_binary(&1), do: String.to_char_list(&1), else: &1))
-  end
-
-  # For Dalli compatibility, we need to set the first bit of "flags" to 1 if
-  # a serializer (coder) is used when setting keys. We're going to precompute
-  # flags based on if a coder is used and store it in our state. See serialize/4
-  # for the other half of this.
-  defp with_flags(opts) do
-    {coder, opts} = Keyword.pop(opts, :coder)
-    flags = case coder do
-      {Memcache.Coder.Raw, _} -> 0
-      _ -> 1
-    end
-    Keyword.put(opts, :flags, flags)
   end
 
   @doc """
