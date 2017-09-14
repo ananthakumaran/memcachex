@@ -26,7 +26,7 @@ defmodule Memcache.Mixfile do
   def deps() do
     [
       {:connection, "~> 1.0.3"},
-      {:poison, "~> 1.5 or ~> 2.0", optional: true},
+      {:poison, "~> 2.1 or ~> 3.0", optional: true},
 
       {:ex_doc, "~> 0.15.0", only: :dev},
       {:exprof, "~> 0.2.0", only: :dev},
