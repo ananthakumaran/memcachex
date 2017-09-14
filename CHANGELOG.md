@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 14 Sep 2017
+
+- add support for dynamic namespace [#6]
+- update poison version [#9]
+
+## [0.4.1] - 1 April 2017
+
+- bug fix
+
 ## [0.4.0] - 20 Mar 2017
 
 ### New
