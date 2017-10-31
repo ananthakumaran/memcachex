@@ -23,7 +23,7 @@ Memcachex comes with two kinds of API, a high level one named
 `Memcache` which provides functions to perform most of the common
 usecases and a low level one named `Memcache.Connection` which
 provides a less restrictive API. See the
-[documenation](https://hexdocs.pm/memcachex) for more information
+[documentation](https://hexdocs.pm/memcachex) for more information
 
 ## Example
 
