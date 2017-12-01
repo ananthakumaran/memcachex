@@ -9,7 +9,7 @@ Memcached client for Elixir
 
 ```elixir
 defp deps() do
-  [{:memcachex, "~> 0.2.1"}]
+  [{:memcachex, "~> 0.4"}]
 end
 
 defp application() do
