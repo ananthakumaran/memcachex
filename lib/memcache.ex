@@ -114,10 +114,26 @@ defmodule Memcache do
     connection_options = Keyword.merge(@default_opts, connection_options)
     |> Keyword.update!(:coder, &normalize_coder/1)
     state = connection_options |> Keyword.take(extra_opts) |> Enum.into(%{})
-    {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
+
+    {:ok, pid} = connection_options
+      |> add_flags
+      |> Keyword.drop(extra_opts)
+      |> Connection.start_link(options)
+
     state = Map.put(state, :connection, pid)
     Registry.associate(pid, state)
+
     {:ok, pid}
+  end
+
+  # When we're using a serializer/coder, then we need to let Connection know to
+  # set the serialization bit when writing keys. For Dalli compat.
+  defp add_flags(opts) do
+    flags = case opts[:coder] do
+      {Memcache.Coder.Raw, _} -> 0
+      _ -> 1
+    end
+    Keyword.put(opts, :flags, flags)
   end
 
   @doc """

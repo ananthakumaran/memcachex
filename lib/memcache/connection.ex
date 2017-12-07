@@ -244,7 +244,8 @@ defmodule Memcache.Connection do
   end
 
   defp send_and_receive(%State{ sock: sock } = s, from, command, args, opts) do
-    packet = serialize(command, args)
+    flags = Keyword.get(s.opts, :flags, 0)
+    packet = serialize(command, args, 0, flags)
     case :gen_tcp.send(sock, packet) do
       :ok ->
         s = enqueue_receiver(s, from)
@@ -255,7 +256,8 @@ defmodule Memcache.Connection do
   end
 
   defp send_and_receive_quiet(%State{ sock: sock } = s, from, commands) do
-    { packet, commands, i } = Enum.reduce(commands, { [], [], 1 }, &accumulate_commands/2)
+    flags = Keyword.get(s.opts, :flags, 0)
+    { packet, commands, i } = Enum.reduce(commands, { [], [], 1 }, &accumulate_commands(&1, &2, flags))
     packet = [packet | serialize(:NOOP, [], i)]
     case :gen_tcp.send(sock, packet) do
       :ok ->
@@ -271,11 +273,11 @@ defmodule Memcache.Connection do
     %{state| receiver_queue: receiver_queue}
   end
 
-  defp accumulate_commands({ command, args }, { packet, commands, i }) do
-    { [packet | serialize(command, args, i)], [{ i, command, args, %{cas: false} } | commands], i + 1 }
+  defp accumulate_commands({ command, args }, { packet, commands, i }, flags) do
+    { [packet | serialize(command, args, i, flags)], [{ i, command, args, %{cas: false} } | commands], i + 1 }
   end
-  defp accumulate_commands({ command, args, options }, { packet, commands, i }) do
-    { [packet | serialize(command, args, i)], [{ i, command, args, %{cas: Keyword.get(options, :cas, false)}} | commands], i + 1 }
+  defp accumulate_commands({ command, args, options }, { packet, commands, i }, flags) do
+    { [packet | serialize(command, args, i, flags)], [{ i, command, args, %{cas: Keyword.get(options, :cas, false)}} | commands], i + 1 }
   end
 
   defp get_backoff(s) do
@@ -352,7 +354,33 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp serialize(command, args, opaque \\ 0) do
+  defp serialize(command, args), do: serialize(command, args, 0)
+
+  defp serialize(command, args, opaque) do
     apply(Protocol, :to_binary, [command | [opaque | args]])
   end
+
+  # For Dalli compatibility, we need to set the first bit of flags to 1 when
+  # using a coder (serializer) with the following commands. We've stored flags
+  # in our state and now just need to use it when serializing the command.
+  defp serialize(command, args, opaque, flags)
+    when command == :SET
+    when command == :SETQ
+    when command == :ADD
+    when command == :ADDQ
+    when command == :REPLACE
+    when command == :REPLACEQ do
+
+    # to_binary for the above commands can default up to three args: cas, expiry, flags.
+    # And since flags is the last arg, we have to account for that here.
+    args = case length(args) do
+      2 -> args ++ [0, 0, flags]
+      3 -> args ++ [0, flags]
+      4 -> args ++ [flags]
+    end
+
+    serialize(command, args, opaque)
+  end
+
+  defp serialize(command, args, opaque, _flags), do: serialize(command, args, opaque)
 end
