@@ -6,7 +6,7 @@ defmodule Memcache.Registry do
   ## Public interface
 
   def start_link() do
-    GenServer.start_link(__MODULE__, :ok, [name: __MODULE__])
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
   def associate(pid, value) when is_pid(pid) do
@@ -16,6 +16,7 @@ defmodule Memcache.Registry do
   def lookup(pid) when is_pid(pid) do
     :ets.lookup_element(__MODULE__, pid, 3)
   end
+
   def lookup(name) do
     lookup(GenServer.whereis(name))
   end
