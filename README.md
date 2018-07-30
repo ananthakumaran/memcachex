@@ -28,9 +28,9 @@ provides a less restrictive API. See the
 ## Example
 
 ```elixir
-{ :ok, pid } = Memcache.start_link()
-{ :ok } = Memcache.set(pid, "hello", "world")
-{ :ok, "world" } = Memcache.get(pid, "hello")
+{:ok, pid} = Memcache.start_link()
+{:ok} = Memcache.set(pid, "hello", "world")
+{:ok, "world"} = Memcache.get(pid, "hello")
 ```
 
 See test folder for further examples.

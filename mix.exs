@@ -4,30 +4,30 @@ defmodule Memcache.Mixfile do
   @version "0.4.2"
 
   def project do
-    [app: :memcachex,
-     version: @version,
-     elixir: ">= 1.3.0",
-     description: "Memcached client",
-     package: package(),
-     docs: docs(),
-     dialyzer: [
-       plt_add_deps: :transitive,
-       ignore_warnings: ".dialyzer_ignore",
-       flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
-     ],
-     deps: deps()]
+    [
+      app: :memcachex,
+      version: @version,
+      elixir: ">= 1.3.0",
+      description: "Memcached client",
+      package: package(),
+      docs: docs(),
+      dialyzer: [
+        plt_add_deps: :transitive,
+        ignore_warnings: ".dialyzer_ignore",
+        flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
+      ],
+      deps: deps()
+    ]
   end
 
   def application do
-    [applications: [:logger, :connection],
-     mod: {Memcache.Application, []}]
+    [applications: [:logger, :connection], mod: {Memcache.Application, []}]
   end
 
   def deps() do
     [
       {:connection, "~> 1.0.3"},
       {:poison, "~> 2.1 or ~> 3.0", optional: true},
-
       {:ex_doc, "~> 0.15.0", only: :dev},
       {:exprof, "~> 0.2.0", only: :dev},
       {:mcd, github: "EchoTeam/mcd", only: :dev},
@@ -38,15 +38,19 @@ defmodule Memcache.Mixfile do
   end
 
   defp package do
-    %{licenses: ["MIT"],
+    %{
+      licenses: ["MIT"],
       links: %{"Github" => "https://github.com/ananthakumaran/memcachex"},
-      maintainers: ["ananthakumaran@gmail.com"]}
+      maintainers: ["ananthakumaran@gmail.com"]
+    }
   end
 
   defp docs do
-    [source_url: "https://github.com/ananthakumaran/memcachex",
-     source_ref: "v#{@version}",
-     main: Memcache,
-     extras: ["README.md"]]
+    [
+      source_url: "https://github.com/ananthakumaran/memcachex",
+      source_ref: "v#{@version}",
+      main: Memcache,
+      extras: ["README.md"]
+    ]
   end
 end

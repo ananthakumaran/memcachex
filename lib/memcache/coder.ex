@@ -9,11 +9,11 @@ defmodule Memcache.Coder do
   Called before the value is sent to the server. It should return
   iodata.
   """
-  @callback encode(any, options :: Keyword.t) :: iodata
+  @callback encode(any, options :: Keyword.t()) :: iodata
 
   @doc """
   Called after the value is loaded from the server. It can return any
   type.
   """
-  @callback decode(iodata, options :: Keyword.t) :: any
+  @callback decode(iodata, options :: Keyword.t()) :: any
 end
