@@ -1,4 +1,5 @@
 defmodule Memcache.Mixfile do
+  @moduledoc false
   use Mix.Project
 
   @version "0.4.2"
