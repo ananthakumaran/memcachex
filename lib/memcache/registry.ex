@@ -5,7 +5,7 @@ defmodule Memcache.Registry do
 
   ## Public interface
 
-  def start_link() do
+  def start_link do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 

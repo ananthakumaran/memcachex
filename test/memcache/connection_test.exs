@@ -1,4 +1,5 @@
 defmodule Memcache.ConnectionTest do
+  @moduledoc false
   use ExUnit.Case, async: false
   import ExUnit.CaptureLog
   import TestUtils
@@ -14,7 +15,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "commands" do
-    {:ok, pid} = start_link(port: 21211, hostname: "localhost")
+    {:ok, pid} = start_link(port: 21_211, hostname: "localhost")
 
     cases = [
       {:FLUSH, [], {:ok}},
@@ -81,7 +82,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "cas commands" do
-    {:ok, pid} = start_link(port: 21211, hostname: "localhost")
+    {:ok, pid} = start_link(port: 21_211, hostname: "localhost")
 
     cases = [
       {:FLUSH, [], [], {:ok}},
@@ -151,7 +152,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "quiet commands" do
-    {:ok, pid} = start_link(port: 21211, hostname: "localhost")
+    {:ok, pid} = start_link(port: 21_211, hostname: "localhost")
     {:ok} = execute(pid, :FLUSH, [])
     {:ok} = execute(pid, :SET, ["new", "hope"])
 
@@ -293,7 +294,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "quiet cas commands" do
-    {:ok, pid} = start_link(port: 21211, hostname: "localhost")
+    {:ok, pid} = start_link(port: 21_211, hostname: "localhost")
     {:ok} = execute(pid, :FLUSH, [])
     {:ok} = execute(pid, :SET, ["new", "hope"])
 
@@ -411,7 +412,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "misc commands" do
-    {:ok, pid} = start_link(port: 21211, hostname: "localhost")
+    {:ok, pid} = start_link(port: 21_211, hostname: "localhost")
     {:ok, _stat} = execute(pid, :STAT, [])
     {:ok, _stat} = execute(pid, :STAT, ["items"])
     {:ok, _stat} = execute(pid, :STAT, ["slabs"])
@@ -422,7 +423,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "named process" do
-    {:ok, pid} = start_link([port: 21211, hostname: "localhost"], name: :memcachex)
+    {:ok, pid} = start_link([port: 21_211, hostname: "localhost"], name: :memcachex)
     {:ok} = execute(:memcachex, :SET, ["hello", "world"])
     {:ok, "world"} = execute(:memcachex, :GET, ["hello"])
     {:ok} = close(pid)
@@ -430,14 +431,14 @@ defmodule Memcache.ConnectionTest do
 
   test "continue if auth is not supported" do
     assert capture_log(fn ->
-             {:ok, pid} = start_link(port: 21211, auth: {:plain, "user", "pass"})
+             {:ok, pid} = start_link(port: 21_211, auth: {:plain, "user", "pass"})
              :timer.sleep(100)
              {:ok} = close(pid)
            end) =~ "Authentication not required"
   end
 
   test "reconnects automatically" do
-    {:ok, pid} = start_link(port: 21211)
+    {:ok, pid} = start_link(port: 21_211)
     down("memcache")
     :timer.sleep(100)
     up("memcache")
@@ -448,7 +449,7 @@ defmodule Memcache.ConnectionTest do
   end
 
   test "always responds back to client" do
-    {:ok, pid} = start_link(port: 21211)
+    {:ok, pid} = start_link(port: 21_211)
     assert {:ok} = execute(pid, :SET, ["hello", "world"])
 
     pids =

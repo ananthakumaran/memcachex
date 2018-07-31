@@ -1,4 +1,5 @@
 defmodule MemcacheTest do
+  @moduledoc false
   use ExUnit.Case, async: false
   import TestUtils
 
@@ -117,7 +118,7 @@ defmodule MemcacheTest do
   end
 
   test "commands" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     common(pid)
     append_prepend(pid)
     multi(pid)
@@ -125,7 +126,7 @@ defmodule MemcacheTest do
   end
 
   test "named" do
-    assert {:ok, _pid} = Memcache.start_link([port: 21211], name: :mem)
+    assert {:ok, _pid} = Memcache.start_link([port: 21_211], name: :mem)
     common(:mem)
     append_prepend(:mem)
     multi(:mem)
@@ -133,7 +134,7 @@ defmodule MemcacheTest do
   end
 
   test "cas" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     assert {:ok} == Memcache.set(pid, "counter", "0")
 
     increment = fn ->
@@ -154,7 +155,7 @@ defmodule MemcacheTest do
   end
 
   test "expire" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     assert {:ok} == Memcache.flush(pid)
 
     assert {:ok} == Memcache.set(pid, "set", "world", ttl: 1)
@@ -192,8 +193,8 @@ defmodule MemcacheTest do
   end
 
   test "namespace" do
-    assert {:ok, namespaced} = Memcache.start_link(port: 21211, namespace: "app")
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, namespaced} = Memcache.start_link(port: 21_211, namespace: "app")
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     assert {:ok} = Memcache.flush(pid)
     assert {:ok} == Memcache.set(namespaced, "hello", "world")
     assert {:error, "Key not found"} == Memcache.get(pid, "hello")
@@ -213,8 +214,8 @@ defmodule MemcacheTest do
   test "key coder" do
     key_coder = {Test.KeyCoder, :call}
 
-    assert {:ok, coded} = Memcache.start_link(port: 21211, key_coder: key_coder)
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, coded} = Memcache.start_link(port: 21_211, key_coder: key_coder)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     assert {:ok} = Memcache.flush(pid)
     assert {:ok} == Memcache.set(coded, "hello", "world")
     assert {:error, "Key not found"} == Memcache.get(pid, "hello")
@@ -232,7 +233,7 @@ defmodule MemcacheTest do
   end
 
   test "default ttl" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211, ttl: 1)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211, ttl: 1)
     assert {:ok} == Memcache.flush(pid)
 
     assert {:ok} == Memcache.set(pid, "set", "world")
@@ -263,7 +264,7 @@ defmodule MemcacheTest do
   end
 
   test "erlang coder" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211, coder: Memcache.Coder.Erlang)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211, coder: Memcache.Coder.Erlang)
     common(pid)
 
     assert {:ok} == Memcache.set(pid, "hello", ["list", 1])
@@ -272,7 +273,7 @@ defmodule MemcacheTest do
     assert {:ok} = Memcache.stop(pid)
 
     assert {:ok, pid} =
-             Memcache.start_link(port: 21211, coder: {Memcache.Coder.Erlang, [compressed: 9]})
+             Memcache.start_link(port: 21_211, coder: {Memcache.Coder.Erlang, [compressed: 9]})
 
     assert {:ok} == Memcache.set(pid, "hello", ["list", 1])
     assert {:ok, ["list", 1]} == Memcache.get(pid, "hello")
@@ -280,7 +281,7 @@ defmodule MemcacheTest do
   end
 
   test "json coder" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211, coder: Memcache.Coder.JSON)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211, coder: Memcache.Coder.JSON)
     common(pid)
 
     assert {:ok} == Memcache.set(pid, "hello", ["list", 1])
@@ -291,7 +292,7 @@ defmodule MemcacheTest do
     assert {:ok} = Memcache.stop(pid)
 
     assert {:ok, pid} =
-             Memcache.start_link(port: 21211, coder: {Memcache.Coder.JSON, [keys: :atoms]})
+             Memcache.start_link(port: 21_211, coder: {Memcache.Coder.JSON, [keys: :atoms]})
 
     assert {:ok} == Memcache.set(pid, "hello", %{hello: "world"})
     assert {:ok, %{hello: "world"}} == Memcache.get(pid, "hello")
@@ -299,13 +300,13 @@ defmodule MemcacheTest do
   end
 
   test "zip coder" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211, coder: Memcache.Coder.ZIP)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211, coder: Memcache.Coder.ZIP)
     common(pid)
     assert {:ok} = Memcache.stop(pid)
   end
 
   test "reconnect" do
-    assert {:ok, pid} = Memcache.start_link(port: 21211)
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
     common(pid)
     down("memcache")
     :timer.sleep(100)

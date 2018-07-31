@@ -80,11 +80,19 @@ defmodule Memcache.Receiver do
 
     if body_size > 0 do
       with {:ok, body, buffer} <- read(sock, buffer, body_size) do
-        response = Protocol.parse_body(header, body) |> elem(1)
+        response =
+          header
+          |> Protocol.parse_body(body)
+          |> elem(1)
+
         {:ok, response, buffer}
       end
     else
-      response = Protocol.parse_body(header, :empty) |> elem(1)
+      response =
+        header
+        |> Protocol.parse_body(:empty)
+        |> elem(1)
+
       {:ok, response, buffer}
     end
   end

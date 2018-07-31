@@ -6,8 +6,8 @@ defmodule Memcache.Connection do
   require Logger
   use Connection
   alias Memcache.Protocol
-  alias Memcache.Utils
   alias Memcache.Receiver
+  alias Memcache.Utils
 
   defmodule State do
     @moduledoc false
@@ -62,13 +62,13 @@ defmodule Memcache.Connection do
     backoff_initial: 500,
     backoff_max: 30_000,
     hostname: 'localhost',
-    port: 11211
+    port: 11_211
   ]
 
   defp with_defaults(opts) do
     @default_opts
     |> Keyword.merge(opts)
-    |> Keyword.update!(:hostname, &if(is_binary(&1), do: String.to_char_list(&1), else: &1))
+    |> Keyword.update!(:hostname, &to_charlist/1)
   end
 
   @doc """
@@ -327,10 +327,10 @@ defmodule Memcache.Connection do
   end
 
   defp get_backoff(s) do
-    if !s.backoff_current do
-      s.opts[:backoff_initial]
-    else
+    if s.backoff_current do
       Utils.next_backoff(s.backoff_current, s.opts[:backoff_max])
+    else
+      s.opts[:backoff_initial]
     end
   end
 
@@ -375,10 +375,10 @@ defmodule Memcache.Connection do
       {:ok, {:ok, list}} ->
         supported = String.split(list, " ")
 
-        if !Enum.member?(supported, "PLAIN") do
-          {:stop, "Server doesn't support PLAIN authentication"}
-        else
+        if Enum.member?(supported, "PLAIN") do
           auth_plain_continue(sock, username, password)
+        else
+          {:stop, "Server doesn't support PLAIN authentication"}
         end
 
       {:ok, {:error, "Unknown command"}} ->

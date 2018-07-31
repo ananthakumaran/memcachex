@@ -9,7 +9,6 @@ defmodule Memcache do
       {:ok} = Memcache.set(pid, "hello", "world")
       {:ok, "world"} = Memcache.get(pid, "hello")
 
-
   ## Coder
 
   `Memcache.Coder` allows you to specify how the value should be encoded before
@@ -152,7 +151,8 @@ defmodule Memcache do
 
     with {:ok, values} <- execute_quiet_k(server, commands) do
       result =
-        Enum.zip(keys, values)
+        keys
+        |> Enum.zip(values)
         |> Enum.reduce(%{}, fn
           {key, {:ok, value}}, acc -> Map.put(acc, key, value)
           {key, {:ok, value, cas}}, acc -> Map.put(acc, key, {value, cas})
@@ -239,23 +239,16 @@ defmodule Memcache do
   """
   @spec cas(GenServer.server(), binary, (binary -> binary), Keyword.t()) :: {:ok, any} | error
   def cas(server, key, update, opts \\ []) do
-    case get(server, key, cas: true) do
-      {:ok, value, cas} ->
-        new_value = update.(value)
-
-        case set_cas(server, key, new_value, cas) do
-          @cas_error ->
-            if Keyword.get(opts, :retry, true) do
-              cas(server, key, update)
-            else
-              @cas_error
-            end
-
-          {:error, _} = other_errors ->
-            other_errors
-
-          {:ok} ->
-            {:ok, new_value}
+    with {:ok, value, cas} <- get(server, key, cas: true),
+         new_value = update.(value),
+         {:ok} <- set_cas(server, key, new_value, cas) do
+      {:ok, new_value}
+    else
+      @cas_error ->
+        if Keyword.get(opts, :retry, true) do
+          cas(server, key, update)
+        else
+          @cas_error
         end
 
       err ->
@@ -589,7 +582,8 @@ defmodule Memcache do
     do: execute_k(server, command, args, opts, get_server_options(server))
 
   defp execute_k(server, command, [key | rest], opts, server_options) do
-    execute(server, command, [key_with_namespace(server_options, key) | rest], opts)
+    server
+    |> execute(command, [key_with_namespace(server_options, key) | rest], opts)
     |> decode_response(server_options)
   end
 
@@ -597,8 +591,8 @@ defmodule Memcache do
     do: execute_kv(server, command, args, opts, get_server_options(server))
 
   defp execute_kv(server, command, [key | [value | rest]], opts, server_options) do
-    execute(
-      server,
+    server
+    |> execute(
       command,
       [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]],
       opts
@@ -619,7 +613,8 @@ defmodule Memcache do
         {command, [key_with_namespace(server_options, key) | rest], opts}
       end)
 
-    execute_quiet(server, commands)
+    server
+    |> execute_quiet(commands)
     |> decode_multi_response(server_options)
   end
 
@@ -630,7 +625,8 @@ defmodule Memcache do
          [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]], opts}
       end)
 
-    execute_quiet(server, commands)
+    server
+    |> execute_quiet(commands)
     |> decode_multi_response(server_options)
   end
 
