@@ -108,13 +108,14 @@ defmodule Memcache do
       |> Keyword.merge(connection_options)
       |> Keyword.update!(:coder, &normalize_coder/1)
 
-    state =
-      connection_options
-      |> Keyword.take(extra_opts)
-      |> Enum.into(%{})
+    {state, connection_options} = Keyword.split(connection_options, extra_opts)
+    {:ok, pid} = Connection.start_link(connection_options, options)
 
-    {:ok, pid} = Connection.start_link(Keyword.drop(connection_options, extra_opts), options)
-    state = Map.put(state, :connection, pid)
+    state =
+      state
+      |> Map.new()
+      |> Map.put(:connection, pid)
+
     Registry.associate(pid, state)
     {:ok, pid}
   end
