@@ -11,10 +11,6 @@ Memcached client for Elixir
 defp deps() do
   [{:memcachex, "~> 0.4"}]
 end
-
-defp application() do
-  [applications: [:logger, :memcachex]]
-end
 ```
 
 ## Overview
