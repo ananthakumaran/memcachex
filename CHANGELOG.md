@@ -1,6 +1,8 @@
 # Change Log
 
 ## [Unreleased]
+- child_spec
+- fix warnings and format code
 
 ## [0.4.2] - 14 Sep 2017
 

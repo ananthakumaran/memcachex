@@ -119,6 +119,15 @@ defmodule Memcache do
     {:ok, pid}
   end
 
+  @doc false
+  def child_spec(args) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, args},
+      type: :worker
+    }
+  end
+
   @doc """
   Closes the connection to the memcached server.
   """

@@ -27,4 +27,6 @@ script:
   - docker-compose -v
   - docker-compose up -d
   - sleep 30
+  - "! mix help format > /dev/null || mix format --check-formatted"
+  - mix compile --force --warnings-as-errors
   - mix test --trace
