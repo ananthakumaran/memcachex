@@ -5,6 +5,7 @@ defmodule Memcache.Connection do
   """
   require Logger
   use Connection
+  use Bitwise
   alias Memcache.Protocol
   alias Memcache.Receiver
   alias Memcache.Utils
@@ -90,7 +91,35 @@ defmodule Memcache.Connection do
   """
   @spec execute(GenServer.server(), atom, [binary], Keyword.t()) :: Memcache.result()
   def execute(pid, command, args, options \\ []) do
-    Connection.call(pid, {:execute, command, args, %{cas: Keyword.get(options, :cas, false)}})
+    if options[:flags] do
+      IO.inspect(options)
+    end
+
+    translate_flags = fn flags ->
+      Enum.reduce(flags, 0, fn
+        :serialize, flag_bits ->
+          flag_bits ||| 1
+        :compressed, flag_bits ->
+          flag_bits ||| 2
+      end)
+    end
+
+    flags =
+      options
+      |> Keyword.get(:flags, [])
+      |> translate_flags.()
+
+    opts =
+      %{}
+      |> Map.put(:cas, Keyword.get(options, :cas, false))
+      |> Map.put(:flags, flags)
+
+    if options[:flags] do
+      IO.inspect(args)
+      IO.inspect(opts)
+    end
+
+    Connection.call(pid, {:execute, command, args, opts})
   end
 
   @doc """
@@ -283,7 +312,7 @@ defmodule Memcache.Connection do
   end
 
   defp send_and_receive(%State{sock: sock} = s, from, command, args, opts) do
-    packet = serialize(command, args)
+    packet = serialize(command, args, opts)
 
     case :gen_tcp.send(sock, packet) do
       :ok ->
@@ -298,7 +327,7 @@ defmodule Memcache.Connection do
 
   defp send_and_receive_quiet(%State{sock: sock} = s, from, commands) do
     {packet, commands, i} = Enum.reduce(commands, {[], [], 1}, &accumulate_commands/2)
-    packet = [packet | serialize(:NOOP, [], i)]
+    packet = [packet | serialize(:NOOP, [], [], i)]
 
     case :gen_tcp.send(sock, packet) do
       :ok ->
@@ -317,12 +346,12 @@ defmodule Memcache.Connection do
   end
 
   defp accumulate_commands({command, args}, {packet, commands, i}) do
-    {[packet | serialize(command, args, i)], [{i, command, args, %{cas: false}} | commands],
+    {[packet | serialize(command, args, [], i)], [{i, command, args, %{cas: false}} | commands],
      i + 1}
   end
 
   defp accumulate_commands({command, args, options}, {packet, commands, i}) do
-    {[packet | serialize(command, args, i)],
+    {[packet | serialize(command, args, options, i)],
      [{i, command, args, %{cas: Keyword.get(options, :cas, false)}} | commands], i + 1}
   end
 
@@ -362,7 +391,7 @@ defmodule Memcache.Connection do
   end
 
   defp execute_command(sock, command, args) do
-    packet = serialize(command, args)
+    packet = serialize(command, args, [])
 
     case :gen_tcp.send(sock, packet) do
       :ok -> recv_response(sock, command)
@@ -413,7 +442,18 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp serialize(command, args, opaque \\ 0) do
+  @flag_commands [:SET, :SETQ, :ADD, :ADDQ, :REPLACE, :REPLACEQ]
+  defp serialize(command, args, opts, opaque \\ 0) do
+    args = if command in @flag_commands do
+      args ++ [Map.get(opts, :flags, 0)]
+    else
+      args
+    end
+
+    do_serialize(command, args, opaque)
+  end
+
+  defp do_serialize(command, args, opaque) do
     apply(Protocol, :to_binary, [command | [opaque | args]])
   end
 end
