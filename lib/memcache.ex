@@ -544,26 +544,45 @@ defmodule Memcache do
     apply(elem(coder, 0), :encode, [value, elem(coder, 1)])
   end
 
-  defp decode(server_options, value) do
+  defp encoder_flags(server_options, value) do
     coder = server_options.coder
-    apply(elem(coder, 0), :decode, [value, elem(coder, 1)])
+    apply(elem(coder, 0), :encode_flags, [value, elem(coder, 1)])
   end
 
-  defp decode_response({:ok, value}, server_options) when is_binary(value) do
-    {:ok, decode(server_options, value)}
+  defp opts_with_flags(opts, encoder_flags) do
+    given_flags = Keyword.get(opts, :flags, [])
+    Keyword.put(opts, :flags, merge_flags(encoder_flags, given_flags))
   end
 
-  defp decode_response({:ok, value, cas}, server_options) when is_binary(value) do
-    {:ok, decode(server_options, value), cas}
+  defp merge_flags(encoder_flags, []), do: encoder_flags
+  defp merge_flags(_encoder_flags, [_head | []] = given_flags), do: given_flags
+
+  defp decode(server_options, {value, flags}) do
+    coder = server_options.coder
+    module = elem(coder, 0)
+    coder_options = elem(coder, 1) ++ [flags: flags]
+    apply(module, :decode, [value, coder_options])
   end
 
-  defp decode_response(rest, _server_options), do: rest
+  defp decode_response({:ok, value, flags}, server_options) when is_binary(value) and is_list(flags) do
+    {:ok, decode(server_options, {value, flags})}
+  end
+
+  defp decode_response({:ok, value, cas, flags}, server_options) when is_binary(value) and is_list(flags) do
+    {:ok, decode(server_options, {value, flags}), cas}
+  end
+
+  defp decode_response(rest, _server_options) do
+    rest
+  end
 
   defp decode_multi_response({:ok, values}, server_options) when is_list(values) do
     {:ok, Enum.map(values, &decode_response(&1, server_options))}
   end
 
-  defp decode_multi_response(rest, _server_options), do: rest
+  defp decode_multi_response(rest, _server_options) do
+    rest
+  end
 
   defp ttl_or_default(server_options, opts) do
     if Keyword.has_key?(opts, :ttl) do
@@ -604,7 +623,7 @@ defmodule Memcache do
     |> execute(
       command,
       [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]],
-      opts
+      opts_with_flags(opts, encoder_flags(server_options, value))
     )
     |> decode_response(server_options)
   end
@@ -631,7 +650,9 @@ defmodule Memcache do
     commands =
       Enum.map(commands, fn {command, [key | [value | rest]], opts} ->
         {command,
-         [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]], opts}
+         [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]],
+         opts_with_flags(opts, encoder_flags(server_options, value))
+        }
       end)
 
     server

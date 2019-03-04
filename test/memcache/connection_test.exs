@@ -19,65 +19,65 @@ defmodule Memcache.ConnectionTest do
 
     cases = [
       {:FLUSH, [], {:ok}},
-      # {:GET, ["unknown"], {:error, "Key not found"}},
-      # {:SET, ["hello", "world"], {:ok}},
-      # {:GET, ["hello"], {:ok, "world"}},
-      # {:SET, ["hello", ['w', 'o', "rl", 'd']], {:ok}},
-      # {:GET, ["hello"], {:ok, "world"}},
-      # {:SET, ["hello", "move on"], {:ok}},
-      # {:SET, [<<0x56::size(32)>>, <<0x56::size(32)>>], {:ok}},
-      # {:GET, [<<0x56::size(32)>>], {:ok, <<0x56::size(32)>>}},
-      # {:GET, ["hello"], {:ok, "move on"}},
-      # {:GETK, ["hello"], {:ok, "hello", "move on"}},
-      # {:GETK, ["unknown"], {:error, "Key not found"}},
-      # {:ADD, ["hello", "world"], {:error, "Key exists"}},
-      # {:ADD, ["add", "world"], {:ok}},
-      # {:DELETE, ["add"], {:ok}},
-      # {:REPLACE, ["add", "world"], {:error, "Key not found"}},
-      # {:ADD, ["add", "world"], {:ok}},
-      # {:REPLACE, ["add", "world"], {:ok}},
-      # {:DELETE, ["add"], {:ok}},
-      # {:DELETE, ["hello"], {:ok}},
-      # {:DELETE, ["unkown"], {:error, "Key not found"}},
-      # {:INCREMENT, ["count", 1, 5], {:ok, 5}},
-      # {:INCREMENT, ["count", 1, 5], {:ok, 6}},
-      # {:INCREMENT, ["count", 5, 1], {:ok, 11}},
-      # {:DELETE, ["count"], {:ok}},
-      # {:SET, ["hello", "world"], {:ok}},
-      # {:INCREMENT, ["hello"], {:error, "Incr/Decr on non-numeric value"}},
-      # {:DELETE, ["hello"], {:ok}},
-      # {:DECREMENT, ["count", 1, 5], {:ok, 5}},
-      # {:DECREMENT, ["count", 1, 5], {:ok, 4}},
-      # {:DECREMENT, ["count", 6, 5], {:ok, 0}},
-      # {:DELETE, ["count"], {:ok}},
-      # {:SET, ["hello", "world"], {:ok}},
-      # {:DECREMENT, ["hello"], {:error, "Incr/Decr on non-numeric value"}},
-      # {:DELETE, ["hello"], {:ok}},
-      # {:INCREMENT, ["count", 6, 5, 0, 0xFFFFFFFF], {:error, "Key not found"}},
-      # {:INCREMENT, ["count", 6, 5, 0, 0x05], {:ok, 5}},
-      # {:DELETE, ["count"], {:ok}},
-      # {:NOOP, [], {:ok}},
-      # {:APPEND, ["new", "hope"], {:error, "Item not stored"}},
-      # {:SET, ["new", "new "], {:ok}},
-      # {:APPEND, ["new", "hope"], {:ok}},
-      # {:GET, ["new"], {:ok, "new hope"}},
-      # {:DELETE, ["new"], {:ok}},
-      # {:PREPEND, ["new", "hope"], {:error, "Item not stored"}},
-      # {:SET, ["new", "hope"], {:ok}},
-      # {:PREPEND, ["new", "new "], {:ok}},
-      # {:GET, ["new"], {:ok, "new hope"}},
-      # {:DELETE, ["new"], {:ok}},
-      # {:SET, ["name", "ananth"], {:ok}},
-      # {:FLUSH, [0xFFFF], {:ok}},
-      # {:GET, ["name"], {:ok, "ananth"}},
-      # {:FLUSH, [], {:ok}},
-      # {:GET, ["name"], {:error, "Key not found"}},
-      {:SET, ["hello", "world", 0, 0], {:ok}},
-      {:GET, ["hello"], {:ok, "world"}},
-      {:SET, ["hello", "world", 0, 0], [flags: [:serialize]], {:ok}},
-      {:GET, ["hello"], [flags: [:serialize]], {:ok, "world"}},
-      {:SET, ["hello", "world", 0, 0], [flags: [:serialize, :compressed]], {:ok}},
-      {:GET, ["hello"], {:ok, "world"}}
+      {:GET, ["unknown"], {:error, "Key not found"}},
+      {:SET, ["hello", "world"], {:ok}},
+      {:GET, ["hello"], {:ok, "world", []}},
+      {:SET, ["hello", ['w', 'o', "rl", 'd']], {:ok}},
+      {:GET, ["hello"], {:ok, "world", []}},
+      {:SET, ["hello", "move on"], {:ok}},
+      {:SET, [<<0x56::size(32)>>, <<0x56::size(32)>>], {:ok}},
+      {:GET, [<<0x56::size(32)>>], {:ok, <<0x56::size(32)>>, []}},
+      {:GET, ["hello"], {:ok, "move on", []}},
+      {:GETK, ["hello"], {:ok, "hello", "move on", []}},
+      {:GETK, ["unknown"], {:error, "Key not found"}},
+      {:ADD, ["hello", "world"], {:error, "Key exists"}},
+      {:ADD, ["add", "world"], {:ok}},
+      {:DELETE, ["add"], {:ok}},
+      {:REPLACE, ["add", "world"], {:error, "Key not found"}},
+      {:ADD, ["add", "world"], {:ok}},
+      {:REPLACE, ["add", "world"], {:ok}},
+      {:DELETE, ["add"], {:ok}},
+      {:DELETE, ["hello"], {:ok}},
+      {:DELETE, ["unkown"], {:error, "Key not found"}},
+      {:INCREMENT, ["count", 1, 5], {:ok, 5}},
+      {:INCREMENT, ["count", 1, 5], {:ok, 6}},
+      {:INCREMENT, ["count", 5, 1], {:ok, 11}},
+      {:DELETE, ["count"], {:ok}},
+      {:SET, ["hello", "world"], {:ok}},
+      {:INCREMENT, ["hello"], {:error, "Incr/Decr on non-numeric value"}},
+      {:DELETE, ["hello"], {:ok}},
+      {:DECREMENT, ["count", 1, 5], {:ok, 5}},
+      {:DECREMENT, ["count", 1, 5], {:ok, 4}},
+      {:DECREMENT, ["count", 6, 5], {:ok, 0}},
+      {:DELETE, ["count"], {:ok}},
+      {:SET, ["hello", "world"], {:ok}},
+      {:DECREMENT, ["hello"], {:error, "Incr/Decr on non-numeric value"}},
+      {:DELETE, ["hello"], {:ok}},
+      {:INCREMENT, ["count", 6, 5, 0, 0xFFFFFFFF], {:error, "Key not found"}},
+      {:INCREMENT, ["count", 6, 5, 0, 0x05], {:ok, 5}},
+      {:DELETE, ["count"], {:ok}},
+      {:NOOP, [], {:ok}},
+      {:APPEND, ["new", "hope"], {:error, "Item not stored"}},
+      {:SET, ["new", "new "], {:ok}},
+      {:APPEND, ["new", "hope"], {:ok}},
+      {:GET, ["new"], {:ok, "new hope", []}},
+      {:DELETE, ["new"], {:ok}},
+      {:PREPEND, ["new", "hope"], {:error, "Item not stored"}},
+      {:SET, ["new", "hope"], {:ok}},
+      {:PREPEND, ["new", "new "], {:ok}},
+      {:GET, ["new"], {:ok, "new hope", []}},
+      {:DELETE, ["new"], {:ok}},
+      {:SET, ["name", "ananth"], {:ok}},
+      {:FLUSH, [0xFFFF], {:ok}},
+      {:GET, ["name"], {:ok, "ananth", []}},
+      {:FLUSH, [], {:ok}},
+      {:GET, ["name"], {:error, "Key not found"}},
+      {:SET, ["hello", "world1", 0, 0], {:ok}},
+      {:GET, ["hello"], {:ok, "world1", []}},
+      {:SET, ["hello", "world2", 0, 0], [flags: [:serialised]], {:ok}},
+      {:GET, ["hello"], {:ok, "world2", [:serialised]}},
+      {:SET, ["hello", "world3", 0, 0], [flags: [:compressed, :serialised]], {:ok}},
+      {:GET, ["hello"], {:ok, "world3", [:compressed, :serialised]}}
     ]
 
     Enum.each(cases, fn
@@ -103,7 +103,7 @@ defmodule Memcache.ConnectionTest do
       {:GET, ["hello"], [cas: true], {:ok, "another", :cas}},
       {:SET, ["hello", "world", :cas], [cas: true], {:ok, :cas}},
       {:SET, ["hello", "move on", :cas], [], {:ok}},
-      {:GET, ["hello"], [], {:ok, "move on"}},
+      {:GET, ["hello"], [], {:ok, "move on", []}},
       {:ADD, ["add", "world"], [cas: true], {:ok, :cas}},
       {:DELETE, ["add", :cas], [], {:ok}},
       {:ADD, ["add", "world"], [], {:ok}},
@@ -112,7 +112,7 @@ defmodule Memcache.ConnectionTest do
       {:REPLACE, ["add", "world", :cas], [], {:ok}},
       {:REPLACE, ["add", "world", :cas], [], @cas_error},
       {:DELETE, ["add", :cas], [], @cas_error},
-      {:GET, ["add"], [cas: true], {:ok, "world", :cas}},
+      {:GET, ["add"], [cas: true], {:ok, "world", :cas, []}},
       {:DELETE, ["add", :cas], [], {:ok}},
       {:INCREMENT, ["count", 1, 5], [cas: true], {:ok, 5, :cas}},
       {:INCREMENT, ["count", 1, 5], [], {:ok, 6}},
@@ -126,7 +126,7 @@ defmodule Memcache.ConnectionTest do
       {:APPEND, ["new", "hope", :cas], [], {:ok}},
       {:APPEND, ["new", "hope", :cas], [], @cas_error},
       {:APPEND, ["new", "hope"], [cas: true], {:ok, :cas}},
-      {:GET, ["new"], [], {:ok, "new hopehope"}},
+      {:GET, ["new"], [], {:ok, "new hopehope", []}},
       {:SET, ["new", "hope"], [cas: true], {:ok, :cas}},
       {:PREPEND, ["new", "new ", :cas], [], {:ok}},
       {:PREPEND, ["new", "new ", :cas], [], @cas_error},
@@ -148,7 +148,18 @@ defmodule Memcache.ConnectionTest do
           cas
 
         {:ok, value, :cas} ->
-          assert {:ok, ^value, cas} = execute(pid, command, args, opts)
+          result = execute(pid, command, args, opts)
+
+          if tuple_size(result) == 3 do
+            assert {:ok, ^value, cas} = result
+            cas
+          else
+            assert {:ok, ^value, cas, []} = result
+            cas
+          end
+
+        {:ok, value, :cas, flags} ->
+          assert {:ok, ^value, cas, ^flags} = execute(pid, command, args, opts)
           cas
 
         rest ->
@@ -168,9 +179,9 @@ defmodule Memcache.ConnectionTest do
     cases = [
       {[{:GETQ, ["hello"]}, {:GETQ, ["hello"]}],
        {:ok, [{:error, "Key not found"}, {:error, "Key not found"}]}},
-      {[{:GETQ, ["new"]}, {:GETQ, ["new"]}], {:ok, [{:ok, "hope"}, {:ok, "hope"}]}},
+      {[{:GETQ, ["new"]}, {:GETQ, ["new"]}], {:ok, [{:ok, "hope", []}, {:ok, "hope", []}]}},
       {[{:GETKQ, ["new"]}, {:GETKQ, ["unknown"]}],
-       {:ok, [{:ok, "new", "hope"}, {:error, "Key not found"}]}},
+       {:ok, [{:ok, "new", "hope", []}, {:error, "Key not found"}]}},
       {[
          {:SETQ, ["hello", "WORLD"]},
          {:GETQ, ["hello"]},
@@ -179,7 +190,7 @@ defmodule Memcache.ConnectionTest do
          {:DELETEQ, ["hello"]},
          {:GETQ, ["hello"]}
        ],
-       {:ok, [{:ok}, {:ok, "WORLD"}, {:ok}, {:ok, "world"}, {:ok}, {:error, "Key not found"}]}},
+       {:ok, [{:ok}, {:ok, "WORLD", []}, {:ok}, {:ok, "world", []}, {:ok}, {:error, "Key not found"}]}},
       {[
          {:SETQ, ["hello", "WORLD"]},
          {:FLUSHQ, []},
@@ -197,7 +208,7 @@ defmodule Memcache.ConnectionTest do
           {:error, "Key not found"},
           {:ok},
           {:ok},
-          {:ok, "world"},
+          {:ok, "world", []},
           {:ok},
           {:error, "Key not found"}
         ]}},
@@ -210,7 +221,7 @@ defmodule Memcache.ConnectionTest do
          {:DELETEQ, ["unknown"]}
        ],
        {:ok,
-        [{:ok}, {:error, "Key exists"}, {:ok}, {:ok, "world"}, {:ok}, {:error, "Key not found"}]}},
+        [{:ok}, {:error, "Key exists"}, {:ok}, {:ok, "world", []}, {:ok}, {:error, "Key not found"}]}},
       {[
          {:INCREMENTQ, ["count", 1, 5]},
          {:INCREMENTQ, ["count", 1, 5]},
@@ -226,9 +237,9 @@ defmodule Memcache.ConnectionTest do
         [
           {:ok},
           {:ok},
-          {:ok, "6"},
+          {:ok, "6", []},
           {:ok},
-          {:ok, "11"},
+          {:ok, "11", []},
           {:ok},
           {:ok},
           {:error, "Incr/Decr on non-numeric value"},
@@ -249,9 +260,9 @@ defmodule Memcache.ConnectionTest do
         [
           {:ok},
           {:ok},
-          {:ok, "4"},
+          {:ok, "4", []},
           {:ok},
-          {:ok, "0"},
+          {:ok, "0", []},
           {:ok},
           {:ok},
           {:error, "Incr/Decr on non-numeric value"},
@@ -263,7 +274,7 @@ defmodule Memcache.ConnectionTest do
          {:REPLACEQ, ["add", "new"]},
          {:GETQ, ["add"]},
          {:DELETEQ, ["add"]}
-       ], {:ok, [{:error, "Key not found"}, {:ok}, {:ok}, {:ok, "new"}, {:ok}]}},
+       ], {:ok, [{:error, "Key not found"}, {:ok}, {:ok}, {:ok, "new", []}, {:ok}]}},
       {[
          {:SETQ, ["new", "new "]},
          {:DELETEQ, ["new"]},
@@ -285,12 +296,12 @@ defmodule Memcache.ConnectionTest do
           {:error, "Item not stored"},
           {:ok},
           {:ok},
-          {:ok, "new hope"},
+          {:ok, "new hope", []},
           {:ok},
           {:error, "Item not stored"},
           {:ok},
           {:ok},
-          {:ok, "new hope"},
+          {:ok, "new hope", []},
           {:ok}
         ]}}
     ]
@@ -307,7 +318,7 @@ defmodule Memcache.ConnectionTest do
     {:ok} = execute(pid, :FLUSH, [])
     {:ok} = execute(pid, :SET, ["new", "hope"])
 
-    assert {:ok, [{:ok, "hope", cas}, {:ok, "hope", cas}]} =
+    assert {:ok, [{:ok, "hope", cas, []}, {:ok, "hope", cas, []}]} =
              execute_quiet(pid, [{:GETQ, ["new"], [cas: true]}, {:GETQ, ["new"], [cas: true]}])
 
     assert {:ok, [{:ok, cas}, @cas_error]} =
@@ -316,7 +327,7 @@ defmodule Memcache.ConnectionTest do
                {:SETQ, ["new", "hope", cas]}
              ])
 
-    assert {:ok, [@cas_error, {:ok}, {:error, "Key not found"}, {:ok}, {:ok, "hope", cas}]} =
+    assert {:ok, [@cas_error, {:ok}, {:error, "Key not found"}, {:ok}, {:ok, "hope", cas, []}]} =
              execute_quiet(pid, [
                {:DELETEQ, ["new", 1492]},
                {:DELETEQ, ["new", cas]},
@@ -339,7 +350,7 @@ defmodule Memcache.ConnectionTest do
                {:INCREMENT, ["count", 1, 5], [cas: true]}
              ])
 
-    assert {:ok, [{:ok}, {:ok, "7"}, @cas_error, {:ok, "7"}, {:ok}, {:ok, "12"}, {:ok}]} =
+    assert {:ok, [{:ok}, {:ok, "7", []}, @cas_error, {:ok, "7", []}, {:ok}, {:ok, "12", []}, {:ok}]} =
              execute_quiet(pid, [
                {:INCREMENTQ, ["count", 1, 5, cas]},
                {:GETQ, ["count"]},
@@ -356,7 +367,7 @@ defmodule Memcache.ConnectionTest do
                {:DECREMENT, ["count", 1, 5], [cas: true]}
              ])
 
-    assert {:ok, [{:ok}, {:ok, "3"}, @cas_error, {:ok, "3"}, {:ok}, {:ok, "0"}, {:ok}]} ==
+    assert {:ok, [{:ok}, {:ok, "3", []}, @cas_error, {:ok, "3", []}, {:ok}, {:ok, "0", []}, {:ok}]} ==
              execute_quiet(pid, [
                {:DECREMENTQ, ["count", 1, 5, cas]},
                {:GETQ, ["count"]},
@@ -374,7 +385,7 @@ defmodule Memcache.ConnectionTest do
                {:REPLACE, ["add", "world"], [cas: true]}
              ])
 
-    assert {:ok, [{:ok}, {:ok, "world"}, @cas_error, {:ok, "world"}, {:ok}]} ==
+    assert {:ok, [{:ok}, {:ok, "world", []}, @cas_error, {:ok, "world", []}, {:ok}]} ==
              execute_quiet(pid, [
                {:REPLACEQ, ["add", "world", cas]},
                {:GETQ, ["add"]},
@@ -394,13 +405,13 @@ defmodule Memcache.ConnectionTest do
     assert {:ok,
             [
               {:ok},
-              {:ok, "new hope"},
+              {:ok, "new hope", []},
               @cas_error,
-              {:ok, "new hope"},
+              {:ok, "new hope", []},
               {:ok},
-              {:ok, "new hope"},
+              {:ok, "new hope", []},
               @cas_error,
-              {:ok, "new hope"},
+              {:ok, "new hope", []},
               {:ok},
               {:ok}
             ]} ==
@@ -434,7 +445,7 @@ defmodule Memcache.ConnectionTest do
   test "named process" do
     {:ok, pid} = start_link([port: 21_211, hostname: "localhost"], name: :memcachex)
     {:ok} = execute(:memcachex, :SET, ["hello", "world"])
-    {:ok, "world"} = execute(:memcachex, :GET, ["hello"])
+    {:ok, "world", []} = execute(:memcachex, :GET, ["hello"])
     {:ok} = close(pid)
   end
 
@@ -453,7 +464,7 @@ defmodule Memcache.ConnectionTest do
     up("memcache")
     :timer.sleep(1000)
     {:ok} = execute(pid, :SET, ["hello", "world"])
-    {:ok, "world"} = execute(pid, :GET, ["hello"])
+    {:ok, "world", []} = execute(pid, :GET, ["hello"])
     {:ok} = close(pid)
   end
 
@@ -465,7 +476,7 @@ defmodule Memcache.ConnectionTest do
       start_hammering(
         fn ->
           assert_value_or_error({:ok}, execute(pid, :SET, ["hello", "world"]))
-          assert_value_or_error({:ok, "world"}, execute(pid, :GET, ["hello"]))
+          assert_value_or_error({:ok, "world", []}, execute(pid, :GET, ["hello"]))
         end,
         8
       )
@@ -512,7 +523,7 @@ defmodule Memcache.ConnectionTest do
     up("memcache_sasl")
     :timer.sleep(1000)
     {:ok} = execute(pid, :SET, ["hello", "world"])
-    {:ok, "world"} = execute(pid, :GET, ["hello"])
+    {:ok, "world", []} = execute(pid, :GET, ["hello"])
     {:ok} = close(pid)
   end
 

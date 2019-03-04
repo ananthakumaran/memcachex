@@ -34,6 +34,12 @@ defmodule Memcache.BinaryUtils do
     AUTH_STEP: 0x22
   ]
 
+  # http://www.hjp.at/zettel/m/memcached_flags.rxml
+  @flags [
+    serialised: 0x1,
+    compressed: 0x2
+  ]
+
   defmacro opb(x) do
     quote do
       <<unquote(Keyword.fetch!(@ops, x))>>
@@ -45,6 +51,12 @@ defmodule Memcache.BinaryUtils do
       unquote(Keyword.fetch!(@ops, x))
     end
   end
+
+  def flag_bit(x) do
+    Keyword.fetch!(@flags, x)
+  end
+
+  def flags, do: @flags
 
   defmodule Header do
     @moduledoc false

@@ -3,7 +3,7 @@ defmodule Memcache.Coder.ZIP do
   Uses `:zlib.zip/1` and `:zlib.unzip/1` to compress and decompress
   value.
   """
-  @behaviour Memcache.Coder
+  use Memcache.Coder
 
   def encode(value, _options), do: :zlib.zip(value)
   def decode(value, _options), do: :zlib.unzip(value)

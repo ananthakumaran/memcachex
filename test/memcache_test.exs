@@ -35,6 +35,8 @@ defmodule MemcacheTest do
     assert {:ok} = Memcache.flush(pid)
     assert {:ok} == Memcache.set(pid, "hello", "world")
     assert {:ok, "world"} == Memcache.get(pid, "hello")
+    assert {:ok} == Memcache.set(pid, "yellow", "world", flags: [:serialised])
+    assert {:ok, "world"} == Memcache.get(pid, "yellow")
     assert {:error, "Key exists"} == Memcache.add(pid, "hello", "world")
     assert {:ok} == Memcache.replace(pid, "hello", "again")
     assert {:ok} == Memcache.delete(pid, "hello")
@@ -286,6 +288,8 @@ defmodule MemcacheTest do
 
     assert {:ok} == Memcache.set(pid, "hello", ["list", 1])
     assert {:ok, ["list", 1]} == Memcache.get(pid, "hello")
+    assert {:ok} == Memcache.set(pid, "yellow", %{test: "test"})
+    assert {:ok, %{"test" => "test"}} == Memcache.get(pid, "yellow")
     assert {:ok, [{:ok}]} == Memcache.multi_set(pid, [{"hello", %{"a" => 1}}])
     assert {:ok, %{"a" => 1}} == Memcache.get(pid, "hello")
     assert {:ok, %{"hello" => %{"a" => 1}}} == Memcache.multi_get(pid, ["hello"])

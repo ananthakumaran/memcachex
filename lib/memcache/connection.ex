@@ -6,6 +6,7 @@ defmodule Memcache.Connection do
   require Logger
   use Connection
   use Bitwise
+  import Memcache.BinaryUtils
   alias Memcache.Protocol
   alias Memcache.Receiver
   alias Memcache.Utils
@@ -91,33 +92,15 @@ defmodule Memcache.Connection do
   """
   @spec execute(GenServer.server(), atom, [binary], Keyword.t()) :: Memcache.result()
   def execute(pid, command, args, options \\ []) do
-    if options[:flags] do
-      IO.inspect(options)
-    end
-
-    translate_flags = fn flags ->
-      Enum.reduce(flags, 0, fn
-        :serialize, flag_bits ->
-          flag_bits ||| 1
-        :compressed, flag_bits ->
-          flag_bits ||| 2
-      end)
-    end
-
     flags =
       options
       |> Keyword.get(:flags, [])
-      |> translate_flags.()
+      |> translate_flags()
 
     opts =
       %{}
       |> Map.put(:cas, Keyword.get(options, :cas, false))
       |> Map.put(:flags, flags)
-
-    if options[:flags] do
-      IO.inspect(args)
-      IO.inspect(opts)
-    end
 
     Connection.call(pid, {:execute, command, args, opts})
   end
@@ -136,6 +119,7 @@ defmodule Memcache.Connection do
   @spec execute_quiet(GenServer.server(), [{atom, [binary]} | {atom, [binary], Keyword.t()}]) ::
           {:ok, [Memcache.result()]} | {:error, atom}
   def execute_quiet(pid, commands) do
+    commands = normalise_flags(commands)
     Connection.call(pid, {:execute_quiet, commands})
   end
 
@@ -289,6 +273,26 @@ defmodule Memcache.Connection do
     :ok
   end
 
+  @spec normalise_flags([{atom, [binary]} | {atom, [binary], Keyword.t()}]) ::
+    [{atom, [binary]} | {atom, [binary], Keyword.t()}]
+  defp normalise_flags(commands) do
+    Enum.map(commands, fn
+      {_command, _args} = command ->
+        command
+
+      {command, args, opts} ->
+        opts = Keyword.update(opts, :flags, 0, &translate_flags/1)
+      {command, args, opts}
+    end)
+  end
+
+  @spec translate_flags(list(atom)) :: pos_integer
+  defp translate_flags(flags) do
+    Enum.reduce(flags, 0x0, fn flag, flag_bits ->
+      flag_bit(flag) ||| flag_bits
+    end)
+  end
+
   defp maybe_activate_sock(state) do
     if Enum.empty?(state.receiver_queue) do
       case :inet.setopts(state.sock, active: :once) do
@@ -327,7 +331,7 @@ defmodule Memcache.Connection do
 
   defp send_and_receive_quiet(%State{sock: sock} = s, from, commands) do
     {packet, commands, i} = Enum.reduce(commands, {[], [], 1}, &accumulate_commands/2)
-    packet = [packet | serialize(:NOOP, [], [], i)]
+    packet = [packet | serialize(:NOOP, [], %{}, i)]
 
     case :gen_tcp.send(sock, packet) do
       :ok ->
@@ -346,7 +350,7 @@ defmodule Memcache.Connection do
   end
 
   defp accumulate_commands({command, args}, {packet, commands, i}) do
-    {[packet | serialize(command, args, [], i)], [{i, command, args, %{cas: false}} | commands],
+    {[packet | serialize(command, args, %{}, i)], [{i, command, args, %{cas: false}} | commands],
      i + 1}
   end
 
@@ -391,7 +395,7 @@ defmodule Memcache.Connection do
   end
 
   defp execute_command(sock, command, args) do
-    packet = serialize(command, args, [])
+    packet = serialize(command, args, %{})
 
     case :gen_tcp.send(sock, packet) do
       :ok -> recv_response(sock, command)
@@ -442,14 +446,24 @@ defmodule Memcache.Connection do
     end
   end
 
+  @default_expiry 0
+  @default_cas 0
   @flag_commands [:SET, :SETQ, :ADD, :ADDQ, :REPLACE, :REPLACEQ]
-  defp serialize(command, args, opts, opaque \\ 0) do
-    args = if command in @flag_commands do
-      args ++ [Map.get(opts, :flags, 0)]
-    else
-      args
+  defp serialize(command, args, opts, opaque \\ 0)
+  defp serialize(command, args, opts, opaque) when command in @flag_commands do
+    opts = Map.new(opts)
+    flags = Map.get(opts, :flags, 0)
+
+    args = case length(args) do
+      2 -> args ++ [@default_expiry, @default_cas, flags]
+      3 -> args ++ [@default_cas, flags]
+      4 -> args ++ [flags]
     end
 
+    do_serialize(command, args, opaque)
+  end
+
+  defp serialize(command, args, _opts, opaque) do
     do_serialize(command, args, opaque)
   end
 

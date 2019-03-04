@@ -2,6 +2,7 @@
 defmodule Memcache.Protocol do
   @moduledoc false
 
+  use Bitwise
   import Memcache.BinaryUtils
   alias Memcache.BinaryUtils.Header
 
@@ -377,6 +378,10 @@ defmodule Memcache.Protocol do
   end
 
   def to_binary(:SET, opaque, key, value, cas, expiry, flag) do
+    if cas == [] do
+      raise "can't have a list here. you need to fix something."
+    end
+
     [
       bcat([request(), opb(:SET)]),
       <<byte_size(key)::size(16)>>,
@@ -496,7 +501,7 @@ defmodule Memcache.Protocol do
   def parse_body(
         %Header{
           status: 0x0000,
-          opcode: op(:GET),
+          opcode: op(:GET) = op,
           extra_length: extra_length,
           total_body_length: total_body_length,
           opaque: opaque
@@ -504,14 +509,17 @@ defmodule Memcache.Protocol do
         rest
       ) do
     value_size = total_body_length - extra_length
-    <<_extra::binary-size(extra_length), value::binary-size(value_size)>> = rest
-    {opaque, {:ok, value}}
+    <<extra::binary-size(extra_length), value::binary-size(value_size)>> = rest
+
+    flags = parse_flags(op, extra)
+
+    {opaque, {:ok, value, flags}}
   end
 
   def parse_body(
         %Header{
           status: 0x0000,
-          opcode: op(:GETQ),
+          opcode: op(:GETQ) = op,
           extra_length: extra_length,
           total_body_length: total_body_length,
           opaque: opaque
@@ -519,14 +527,17 @@ defmodule Memcache.Protocol do
         rest
       ) do
     value_size = total_body_length - extra_length
-    <<_extra::binary-size(extra_length), value::binary-size(value_size)>> = rest
-    {opaque, {:ok, value}}
+    <<extra::binary-size(extra_length), value::binary-size(value_size)>> = rest
+
+    flags = parse_flags(op, extra)
+
+    {opaque, {:ok, value, flags}}
   end
 
   def parse_body(
         %Header{
           status: 0x0000,
-          opcode: op(:GETK),
+          opcode: op(:GETK) = op,
           extra_length: extra_length,
           key_length: key_length,
           total_body_length: total_body_length,
@@ -536,16 +547,18 @@ defmodule Memcache.Protocol do
       ) do
     value_size = total_body_length - extra_length - key_length
 
-    <<_extra::binary-size(extra_length), key::binary-size(key_length),
+    <<extra::binary-size(extra_length), key::binary-size(key_length),
       value::binary-size(value_size)>> = rest
 
-    {opaque, {:ok, key, value}}
+    flags = parse_flags(op, extra)
+
+    {opaque, {:ok, key, value, flags}}
   end
 
   def parse_body(
         %Header{
           status: 0x0000,
-          opcode: op(:GETKQ),
+          opcode: op(:GETKQ) = op,
           extra_length: extra_length,
           key_length: key_length,
           total_body_length: total_body_length,
@@ -555,10 +568,12 @@ defmodule Memcache.Protocol do
       ) do
     value_size = total_body_length - extra_length - key_length
 
-    <<_extra::binary-size(extra_length), key::binary-size(key_length),
+    <<extra::binary-size(extra_length), key::binary-size(key_length),
       value::binary-size(value_size)>> = rest
 
-    {opaque, {:ok, key, value}}
+    flags = parse_flags(op, extra)
+
+    {opaque, {:ok, key, value, flags}}
   end
 
   def parse_body(%Header{status: 0x0000, opcode: op(:VERSION), opaque: opaque}, rest) do
@@ -623,6 +638,17 @@ defmodule Memcache.Protocol do
 
   def parse_body(%Header{status: 0x0021, opaque: opaque}, body) do
     {opaque, {:error, :auth_step, body}}
+  end
+
+  @get_commands [op(:GET), op(:GETQ), op(:GETK), op(:GETKQ)]
+  def parse_flags(command, <<extra::32>>) when command in @get_commands do
+    Enum.reduce(flags(), [], fn {flag_name, flag_bits}, flags ->
+      if (extra &&& flag_bits) != 0, do: [flag_name | flags], else: flags
+    end)
+  end
+
+  def parse_flags(_command, _extra) do
+    []
   end
 
   defparse_empty(:SET)
