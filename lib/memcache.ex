@@ -53,9 +53,9 @@ defmodule Memcache do
   """
 
   @type error :: {:error, binary | atom}
-  @type result :: {:ok} | {:ok, integer} | {:ok, any} | {:ok, any, integer} | error
+  @type result :: {:ok} | {:ok, integer} | {:ok, any} | {:ok, any, keyword} | {:ok, any, integer} | {:ok, any, integer, keyword} | error
 
-  @type fetch_result :: {:ok, any} | {:ok, any, integer} | error
+  @type fetch_result :: {:ok, any} | {:ok, any, keyword} | {:ok, any, integer} | {:ok, any, integer, keyword} | error
 
   @type fetch_integer_result :: {:ok, integer} | {:ok, integer, integer} | error
 
