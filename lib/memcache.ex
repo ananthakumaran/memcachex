@@ -53,9 +53,21 @@ defmodule Memcache do
   """
 
   @type error :: {:error, binary | atom}
-  @type result :: {:ok} | {:ok, integer} | {:ok, any} | {:ok, any, keyword} | {:ok, any, integer} | {:ok, any, integer, keyword} | error
+  @type result ::
+          {:ok}
+          | {:ok, integer}
+          | {:ok, any}
+          | {:ok, any, keyword}
+          | {:ok, any, integer}
+          | {:ok, any, integer, keyword}
+          | error
 
-  @type fetch_result :: {:ok, any} | {:ok, any, keyword} | {:ok, any, integer} | {:ok, any, integer, keyword} | error
+  @type fetch_result ::
+          {:ok, any}
+          | {:ok, any, keyword}
+          | {:ok, any, integer}
+          | {:ok, any, integer, keyword}
+          | error
 
   @type fetch_integer_result :: {:ok, integer} | {:ok, integer, integer} | error
 
@@ -564,11 +576,13 @@ defmodule Memcache do
     apply(module, :decode, [value, coder_options])
   end
 
-  defp decode_response({:ok, value, flags}, server_options) when is_binary(value) and is_list(flags) do
+  defp decode_response({:ok, value, flags}, server_options)
+       when is_binary(value) and is_list(flags) do
     {:ok, decode(server_options, {value, flags})}
   end
 
-  defp decode_response({:ok, value, cas, flags}, server_options) when is_binary(value) and is_list(flags) do
+  defp decode_response({:ok, value, cas, flags}, server_options)
+       when is_binary(value) and is_list(flags) do
     {:ok, decode(server_options, {value, flags}), cas}
   end
 
@@ -651,8 +665,7 @@ defmodule Memcache do
       Enum.map(commands, fn {command, [key | [value | rest]], opts} ->
         {command,
          [key_with_namespace(server_options, key) | [encode(server_options, value) | rest]],
-         opts_with_flags(opts, encoder_flags(server_options, value))
-        }
+         opts_with_flags(opts, encoder_flags(server_options, value))}
       end)
 
     server

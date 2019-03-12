@@ -274,7 +274,7 @@ defmodule Memcache.Connection do
   end
 
   @spec normalise_flags([{atom, [binary]} | {atom, [binary], Keyword.t()}]) ::
-    [{atom, [binary]} | {atom, [binary], Keyword.t()}]
+          [{atom, [binary]} | {atom, [binary], Keyword.t()}]
   defp normalise_flags(commands) do
     Enum.map(commands, fn
       {_command, _args} = command ->
@@ -282,7 +282,7 @@ defmodule Memcache.Connection do
 
       {command, args, opts} ->
         opts = Keyword.update(opts, :flags, 0, &translate_flags/1)
-      {command, args, opts}
+        {command, args, opts}
     end)
   end
 
@@ -450,15 +450,17 @@ defmodule Memcache.Connection do
   @default_cas 0
   @flag_commands [:SET, :SETQ, :ADD, :ADDQ, :REPLACE, :REPLACEQ]
   defp serialize(command, args, opts, opaque \\ 0)
+
   defp serialize(command, args, opts, opaque) when command in @flag_commands do
     opts = Map.new(opts)
     flags = Map.get(opts, :flags, 0)
 
-    args = case length(args) do
-      2 -> args ++ [@default_expiry, @default_cas, flags]
-      3 -> args ++ [@default_cas, flags]
-      4 -> args ++ [flags]
-    end
+    args =
+      case length(args) do
+        2 -> args ++ [@default_expiry, @default_cas, flags]
+        3 -> args ++ [@default_cas, flags]
+        4 -> args ++ [flags]
+      end
 
     do_serialize(command, args, opaque)
   end

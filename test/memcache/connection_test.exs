@@ -83,6 +83,7 @@ defmodule Memcache.ConnectionTest do
     Enum.each(cases, fn
       {command, args, response} ->
         assert(execute(pid, command, args) == response)
+
       {command, args, opts, response} ->
         assert(execute(pid, command, args, opts) == response)
     end)
@@ -190,7 +191,8 @@ defmodule Memcache.ConnectionTest do
          {:DELETEQ, ["hello"]},
          {:GETQ, ["hello"]}
        ],
-       {:ok, [{:ok}, {:ok, "WORLD", []}, {:ok}, {:ok, "world", []}, {:ok}, {:error, "Key not found"}]}},
+       {:ok,
+        [{:ok}, {:ok, "WORLD", []}, {:ok}, {:ok, "world", []}, {:ok}, {:error, "Key not found"}]}},
       {[
          {:SETQ, ["hello", "WORLD"]},
          {:FLUSHQ, []},
@@ -221,7 +223,14 @@ defmodule Memcache.ConnectionTest do
          {:DELETEQ, ["unknown"]}
        ],
        {:ok,
-        [{:ok}, {:error, "Key exists"}, {:ok}, {:ok, "world", []}, {:ok}, {:error, "Key not found"}]}},
+        [
+          {:ok},
+          {:error, "Key exists"},
+          {:ok},
+          {:ok, "world", []},
+          {:ok},
+          {:error, "Key not found"}
+        ]}},
       {[
          {:INCREMENTQ, ["count", 1, 5]},
          {:INCREMENTQ, ["count", 1, 5]},
@@ -350,7 +359,8 @@ defmodule Memcache.ConnectionTest do
                {:INCREMENT, ["count", 1, 5], [cas: true]}
              ])
 
-    assert {:ok, [{:ok}, {:ok, "7", []}, @cas_error, {:ok, "7", []}, {:ok}, {:ok, "12", []}, {:ok}]} =
+    assert {:ok,
+            [{:ok}, {:ok, "7", []}, @cas_error, {:ok, "7", []}, {:ok}, {:ok, "12", []}, {:ok}]} =
              execute_quiet(pid, [
                {:INCREMENTQ, ["count", 1, 5, cas]},
                {:GETQ, ["count"]},
@@ -367,7 +377,8 @@ defmodule Memcache.ConnectionTest do
                {:DECREMENT, ["count", 1, 5], [cas: true]}
              ])
 
-    assert {:ok, [{:ok}, {:ok, "3", []}, @cas_error, {:ok, "3", []}, {:ok}, {:ok, "0", []}, {:ok}]} ==
+    assert {:ok,
+            [{:ok}, {:ok, "3", []}, @cas_error, {:ok, "3", []}, {:ok}, {:ok, "0", []}, {:ok}]} ==
              execute_quiet(pid, [
                {:DECREMENTQ, ["count", 1, 5, cas]},
                {:GETQ, ["count"]},

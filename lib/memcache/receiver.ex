@@ -107,7 +107,10 @@ defmodule Memcache.Receiver do
 
   defp append_cas_version({:ok}, %{cas: cas_version}), do: {:ok, cas_version}
   defp append_cas_version({:ok, value}, %{cas: cas_version}), do: {:ok, value, cas_version}
-  defp append_cas_version({:ok, value, flags}, %{cas: cas_version}), do: {:ok, value, cas_version, flags}
+
+  defp append_cas_version({:ok, value, flags}, %{cas: cas_version}),
+    do: {:ok, value, cas_version, flags}
+
   defp append_cas_version(error, %{cas: _cas_version}), do: error
 
   defp recv_response_quiet([], _sock, results, buffer) do
