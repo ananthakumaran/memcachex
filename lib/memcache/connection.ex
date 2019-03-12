@@ -273,8 +273,9 @@ defmodule Memcache.Connection do
     :ok
   end
 
-  @spec normalise_flags([{atom, [binary]} | {atom, [binary], Keyword.t()}]) ::
-          [{atom, [binary]} | {atom, [binary], Keyword.t()}]
+  @spec normalise_flags([{atom, [binary]} | {atom, [binary], Keyword.t()}]) :: [
+          {atom, [binary]} | {atom, [binary], Keyword.t()}
+        ]
   defp normalise_flags(commands) do
     Enum.map(commands, fn
       {_command, _args} = command ->
