@@ -29,7 +29,7 @@ defmodule Memcache.Mixfile do
     [
       {:connection, "~> 1.0.3"},
       {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0", optional: true},
-      {:ex_doc, "~> 0.15.0", only: :dev},
+      {:ex_doc, "~> 0.20.0", only: :dev},
       {:exprof, "~> 0.2.0", only: :dev},
       {:mcd, github: "EchoTeam/mcd", only: :dev},
       {:benchee, "~> 0.6", only: :dev},
