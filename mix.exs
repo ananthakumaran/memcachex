@@ -28,13 +28,15 @@ defmodule Memcache.Mixfile do
   def deps() do
     [
       {:connection, "~> 1.0.3"},
-      {:poison, "~> 2.1 or ~> 3.0", optional: true},
+      {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0", optional: true},
       {:ex_doc, "~> 0.15.0", only: :dev},
       {:exprof, "~> 0.2.0", only: :dev},
       {:mcd, github: "EchoTeam/mcd", only: :dev},
       {:benchee, "~> 0.6", only: :dev},
       {:mix_test_watch, "~> 0.2", only: :dev},
-      {:toxiproxy, "~> 0.3", only: :test}
+      {:toxiproxy, "~> 0.3", only: :test},
+      {:lager, "3.2.0",
+       only: :dev, git: "git://github.com/basho/lager.git", tag: "3.2.0", override: true}
     ]
   end
 
