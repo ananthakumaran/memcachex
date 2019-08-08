@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.4.6] - 8 Aug 2019
+
+- fix dialyzer spec [#20]
+
 ## [0.4.3] - 26 Sep 2017
 
 - child_spec
