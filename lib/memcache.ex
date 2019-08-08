@@ -248,7 +248,7 @@ defmodule Memcache do
   function will go to step 1 and try again. Retry behavior can be
   disabled by passing `[retry: false]` option.
   """
-  @spec cas(GenServer.server(), binary, (binary -> binary), Keyword.t()) :: {:ok, any} | error
+  @spec cas(GenServer.server(), binary, (value -> value), Keyword.t()) :: {:ok, any} | error
   def cas(server, key, update, opts \\ []) do
     with {:ok, value, cas} <- get(server, key, cas: true),
          new_value = update.(value),
