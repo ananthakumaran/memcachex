@@ -61,6 +61,8 @@ defmodule Memcache do
 
   @type store_result :: {:ok} | {:ok, integer} | error
 
+  @type value :: term
+
   alias Memcache.Connection
   alias Memcache.Registry
 
@@ -177,7 +179,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec set(GenServer.server(), binary, term, Keyword.t()) :: store_result
+  @spec set(GenServer.server(), binary, value, Keyword.t()) :: store_result
   def set(server, key, value, opts \\ []) do
     set_cas(server, key, value, 0, opts)
   end
@@ -188,7 +190,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec set_cas(GenServer.server(), binary, term, integer, Keyword.t()) :: store_result
+  @spec set_cas(GenServer.server(), binary, value, integer, Keyword.t()) :: store_result
   def set_cas(server, key, value, cas, opts \\ []) do
     server_options = get_server_options(server)
 
@@ -206,7 +208,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec multi_set(GenServer.server(), [{binary, term}] | map, Keyword.t()) ::
+  @spec multi_set(GenServer.server(), [{binary, value}] | map, Keyword.t()) ::
           {:ok, [store_result]} | error
   def multi_set(server, commands, opts \\ []) do
     commands = Enum.map(commands, fn {key, value} -> {key, value, 0} end)
@@ -218,7 +220,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec multi_set_cas(GenServer.server(), [{binary, term, integer}], Keyword.t()) ::
+  @spec multi_set_cas(GenServer.server(), [{binary, value, integer}], Keyword.t()) ::
           {:ok, [store_result]} | error
   def multi_set_cas(server, commands, opts \\ []) do
     op = if Keyword.get(opts, :cas, false), do: :SET, else: :SETQ
@@ -271,7 +273,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec add(GenServer.server(), binary, term, Keyword.t()) :: store_result
+  @spec add(GenServer.server(), binary, value, Keyword.t()) :: store_result
   def add(server, key, value, opts \\ []) do
     server_options = get_server_options(server)
 
@@ -290,7 +292,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec replace(GenServer.server(), binary, term, Keyword.t()) :: store_result
+  @spec replace(GenServer.server(), binary, value, Keyword.t()) :: store_result
   def replace(server, key, value, opts \\ []) do
     replace_cas(server, key, value, 0, opts)
   end
@@ -301,7 +303,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`, `:ttl`
   """
-  @spec replace_cas(GenServer.server(), binary, term, integer, Keyword.t()) :: store_result
+  @spec replace_cas(GenServer.server(), binary, value, integer, Keyword.t()) :: store_result
   def replace_cas(server, key, value, cas, opts \\ []) do
     server_options = get_server_options(server)
 
@@ -350,7 +352,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec append(GenServer.server(), binary, term, Keyword.t()) :: store_result
+  @spec append(GenServer.server(), binary, value, Keyword.t()) :: store_result
   def append(server, key, value, opts \\ []) do
     execute_kv(server, :APPEND, [key, value], opts)
   end
@@ -361,7 +363,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec append_cas(GenServer.server(), binary, term, integer, Keyword.t()) :: store_result
+  @spec append_cas(GenServer.server(), binary, value, integer, Keyword.t()) :: store_result
   def append_cas(server, key, value, cas, opts \\ []) do
     execute_kv(server, :APPEND, [key, value, cas], opts)
   end
@@ -373,7 +375,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec prepend(GenServer.server(), binary, term, Keyword.t()) :: store_result
+  @spec prepend(GenServer.server(), binary, value, Keyword.t()) :: store_result
   def prepend(server, key, value, opts \\ []) do
     execute_kv(server, :PREPEND, [key, value], opts)
   end
@@ -384,7 +386,7 @@ defmodule Memcache do
 
   Accepted options: `:cas`
   """
-  @spec prepend_cas(GenServer.server(), binary, term, integer, Keyword.t()) :: store_result
+  @spec prepend_cas(GenServer.server(), binary, value, integer, Keyword.t()) :: store_result
   def prepend_cas(server, key, value, cas, opts \\ []) do
     execute_kv(server, :PREPEND, [key, value, cas], opts)
   end
