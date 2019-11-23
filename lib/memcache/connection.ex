@@ -90,7 +90,9 @@ defmodule Memcache.Connection do
   """
   @spec execute(GenServer.server(), atom, [binary], Keyword.t()) :: Memcache.result()
   def execute(pid, command, args, options \\ []) do
-    Connection.call(pid, {:execute, command, args, %{cas: Keyword.get(options, :cas, false)}})
+    with_telemetry([{command, args, options}], fn ->
+      Connection.call(pid, {:execute, command, args, %{cas: Keyword.get(options, :cas, false)}})
+    end)
   end
 
   @doc """
@@ -107,7 +109,32 @@ defmodule Memcache.Connection do
   @spec execute_quiet(GenServer.server(), [{atom, [binary]} | {atom, [binary], Keyword.t()}]) ::
           {:ok, [Memcache.result()]} | {:error, atom}
   def execute_quiet(pid, commands) do
-    Connection.call(pid, {:execute_quiet, commands})
+    with_telemetry(commands, fn ->
+      Connection.call(pid, {:execute_quiet, commands})
+    end)
+  end
+
+  defp with_telemetry(commands, callback) do
+    telemetry_metadata = %{
+      commands: commands,
+      start_time: System.system_time()
+    }
+
+    start_time = System.monotonic_time()
+    result = callback.()
+    end_time = System.monotonic_time()
+    measurements = %{elapsed_time: end_time - start_time}
+
+    case result do
+      {:error, reason} ->
+        telemetry_metadata = Map.put(telemetry_metadata, :reason, reason)
+        :ok = :telemetry.execute([:memcachex, :commands_error], %{}, telemetry_metadata)
+
+      _ ->
+        :ok = :telemetry.execute([:memcachex, :commands], measurements, telemetry_metadata)
+    end
+
+    result
   end
 
   @doc """
@@ -133,10 +160,19 @@ defmodule Memcache.Connection do
 
     case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, s) do
       {:ok, sock} ->
+        formatted_host = Utils.format_host(opts)
+        reconnected = info == :backoff || info == :reconnect
+
         _ =
-          if info == :backoff || info == :reconnect do
-            Logger.info(["Reconnected to Memcache (", Utils.format_host(opts), ")"])
+          if reconnected do
+            Logger.info(["Reconnected to Memcache (", formatted_host, ")"])
           end
+
+        :ok =
+          :telemetry.execute([:memcachex, :connection], %{}, %{
+            server: formatted_host,
+            reconnected: reconnected
+          })
 
         {:ok, receiver} = Receiver.start_link([sock, self()])
         receiver_queue = MapSet.new()
@@ -153,17 +189,24 @@ defmodule Memcache.Connection do
 
       {:error, reason} ->
         backoff = get_backoff(s)
+        formatted_host = Utils.format_host(opts)
 
         _ =
           Logger.error([
             "Failed to connect to Memcache (",
-            Utils.format_host(opts),
+            formatted_host,
             "): ",
             Utils.format_error(reason),
             ". Sleeping for ",
             to_string(backoff),
             "ms."
           ])
+
+        :ok =
+          :telemetry.execute([:memcachex, :connection_error], %{}, %{
+            server: formatted_host,
+            reason: reason
+          })
 
         {:backoff, backoff, %{s | backoff_current: backoff}}
 
@@ -173,13 +216,21 @@ defmodule Memcache.Connection do
   end
 
   def disconnect({:error, reason}, %State{opts: opts} = s) do
+    formatted_host = Utils.format_host(opts)
+
     _ =
       Logger.error([
         "Disconnected from Memcache (",
-        Utils.format_host(opts),
+        formatted_host,
         "): ",
         Utils.format_error(reason)
       ])
+
+    :ok =
+      :telemetry.execute([:memcachex, :connection_error], %{}, %{
+        server: formatted_host,
+        reason: reason
+      })
 
     cleanup(s)
 
