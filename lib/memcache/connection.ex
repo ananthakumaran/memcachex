@@ -128,7 +128,7 @@ defmodule Memcache.Connection do
     case result do
       {:error, reason} ->
         telemetry_metadata = Map.put(telemetry_metadata, :reason, reason)
-        :ok = :telemetry.execute([:memcachex, :commands_error], %{}, telemetry_metadata)
+        :ok = :telemetry.execute([:memcachex, :commands_error], measurements, telemetry_metadata)
 
       _ ->
         :ok = :telemetry.execute([:memcachex, :commands], measurements, telemetry_metadata)
