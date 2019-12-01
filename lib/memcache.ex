@@ -35,6 +35,38 @@ defmodule Memcache do
   of CAS error. In case of CAS error the returned value would be equal
   to `{:error, "Key exists"}`
 
+  ## Telemetry
+
+  The following [telemetry](https://github.com/beam-telemetry/telemetry) events are published:
+
+  * `[:memcachex, :commands]` - executed for every successful commands
+    * Measurements
+      * `:elapsed_time` - (integer - native time unit) the time it took to send the commands to the server and get a reply.
+    * Metadata
+      * `:server` - (binary) hostname and port of the server
+      * `:commands` - (list) list of command
+      * `:results` - (list) list of response from the server
+      * `:start_time` - (integer - native time unit) system time when the commands were issued
+
+  * `[:memcachex, :commands_error]` - executed for every failed commands
+    * Measurements
+      * `:elapsed_time` - (integer - native time unit) the time it took to send the commands to the server and get a reply.
+    * Metadata
+      * `:server` - (binary) hostname and port of the server
+      * `:commands` - (list) list of command
+      * `:reason` - (atom) error reason
+      * `:start_time` - (integer - native time unit) system time when the commands were issued
+
+  * `[:memcachex, :connection]` - executed after successful connection.
+    * Metadata
+      * `:server` - (binary) hostname and port of the server
+      * `:reconnected` - (boolean) set to true for reconnection
+
+  * `[:memcachex, :connection_error]` - executed on connection failure.
+    * Metadata
+      * `:server` - (binary) hostname and port of the server
+      * `:reason` - (atom) error reason
+
   ## Options
 
   Most the functions in this module accept an optional `Keyword`
