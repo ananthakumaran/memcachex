@@ -12,7 +12,12 @@ defmodule Memcache.Connection do
   defmodule State do
     @moduledoc false
 
-    defstruct opts: nil, sock: nil, backoff_current: nil, receiver: nil, receiver_queue: nil
+    defstruct opts: nil,
+              sock: nil,
+              backoff_current: nil,
+              receiver: nil,
+              receiver_queue: nil,
+              server: nil
   end
 
   @doc """
@@ -121,8 +126,9 @@ defmodule Memcache.Connection do
     }
 
     start_time = System.monotonic_time()
-    result = callback.()
+    {result, %{server: server}} = callback.()
     end_time = System.monotonic_time()
+    telemetry_metadata = Map.put(telemetry_metadata, :server, server)
     measurements = %{elapsed_time: end_time - start_time}
 
     case normalize_result(result) do
@@ -161,29 +167,28 @@ defmodule Memcache.Connection do
   end
 
   def init(opts) do
-    {:connect, :init, %State{opts: opts}}
+    {:connect, :init, %State{opts: opts, server: Utils.format_host(opts)}}
   end
 
-  def connect(info, %State{opts: opts} = s) do
+  def connect(info, %State{opts: opts, server: server} = s) do
     sock_opts = [:binary, active: false, packet: :raw]
 
     case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, s) do
       {:ok, sock} ->
-        formatted_host = Utils.format_host(opts)
         reconnected = info == :backoff || info == :reconnect
 
         _ =
           if reconnected do
-            Logger.info(["Reconnected to Memcache (", formatted_host, ")"])
+            Logger.info(["Reconnected to Memcache (", server, ")"])
           end
 
         :ok =
           :telemetry.execute([:memcachex, :connection], %{}, %{
-            server: formatted_host,
+            server: server,
             reconnected: reconnected
           })
 
-        {:ok, receiver} = Receiver.start_link([sock, self()])
+        {:ok, receiver} = Receiver.start_link([sock, self(), server])
         receiver_queue = MapSet.new()
 
         state = %{
@@ -198,12 +203,11 @@ defmodule Memcache.Connection do
 
       {:error, reason} ->
         backoff = get_backoff(s)
-        formatted_host = Utils.format_host(opts)
 
         _ =
           Logger.error([
             "Failed to connect to Memcache (",
-            formatted_host,
+            server,
             "): ",
             Utils.format_error(reason),
             ". Sleeping for ",
@@ -213,7 +217,7 @@ defmodule Memcache.Connection do
 
         :ok =
           :telemetry.execute([:memcachex, :connection_error], %{}, %{
-            server: formatted_host,
+            server: server,
             reason: reason
           })
 
@@ -224,20 +228,18 @@ defmodule Memcache.Connection do
     end
   end
 
-  def disconnect({:error, reason}, %State{opts: opts} = s) do
-    formatted_host = Utils.format_host(opts)
-
+  def disconnect({:error, reason}, %State{server: server} = s) do
     _ =
       Logger.error([
         "Disconnected from Memcache (",
-        formatted_host,
+        server,
         "): ",
         Utils.format_error(reason)
       ])
 
     :ok =
       :telemetry.execute([:memcachex, :connection_error], %{}, %{
-        server: formatted_host,
+        server: server,
         reason: reason
       })
 
@@ -248,7 +250,7 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({:execute, _command, _args, _opts}, _from, %State{sock: nil} = s) do
-    {:reply, {:error, :closed}, s}
+    {:reply, connection_closed_response(s), s}
   end
 
   def handle_call({:execute, command, args, opts}, from, s) do
@@ -258,7 +260,7 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({:execute_quiet, _commands}, _from, %State{sock: nil} = s) do
-    {:reply, {:error, :closed}, s}
+    {:reply, connection_closed_response(s), s}
   end
 
   def handle_call({:execute_quiet, commands}, from, s) do
@@ -298,7 +300,7 @@ defmodule Memcache.Connection do
 
   ## Private ##
 
-  def cleanup(%State{sock: sock, receiver: receiver, receiver_queue: receiver_queue}) do
+  def cleanup(%State{sock: sock, receiver: receiver, receiver_queue: receiver_queue} = s) do
     if sock do
       :ok = :gen_tcp.close(sock)
     end
@@ -313,11 +315,15 @@ defmodule Memcache.Connection do
 
     if receiver_queue do
       Enum.each(receiver_queue, fn from ->
-        Connection.reply(from, {:error, :closed})
+        Connection.reply(from, connection_closed_response(s))
       end)
     end
 
     :ok
+  end
+
+  defp connection_closed_response(%State{server: server}) do
+    {{:error, :closed}, %{server: server}}
   end
 
   defp maybe_activate_sock(state) do
