@@ -125,16 +125,25 @@ defmodule Memcache.Connection do
     end_time = System.monotonic_time()
     measurements = %{elapsed_time: end_time - start_time}
 
-    case result do
+    case normalize_result(result) do
       {:error, reason} ->
         telemetry_metadata = Map.put(telemetry_metadata, :reason, reason)
         :ok = :telemetry.execute([:memcachex, :commands_error], measurements, telemetry_metadata)
 
-      _ ->
+      {:ok, results} ->
+        telemetry_metadata = Map.put(telemetry_metadata, :results, results)
         :ok = :telemetry.execute([:memcachex, :commands], measurements, telemetry_metadata)
     end
 
     result
+  end
+
+  defp normalize_result(result) do
+    case result do
+      {:error, reason} when is_atom(reason) -> {:error, reason}
+      {:ok, results} when is_list(results) -> {:ok, results}
+      _ -> {:ok, [result]}
+    end
   end
 
   @doc """
