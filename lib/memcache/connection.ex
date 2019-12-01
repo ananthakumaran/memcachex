@@ -250,7 +250,7 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({:execute, _command, _args, _opts}, _from, %State{sock: nil} = s) do
-    {:reply, connection_closed_response(s), s}
+    {:reply, error_response(s), s}
   end
 
   def handle_call({:execute, command, args, opts}, from, s) do
@@ -260,7 +260,7 @@ defmodule Memcache.Connection do
   end
 
   def handle_call({:execute_quiet, _commands}, _from, %State{sock: nil} = s) do
-    {:reply, connection_closed_response(s), s}
+    {:reply, error_response(s), s}
   end
 
   def handle_call({:execute_quiet, commands}, from, s) do
@@ -315,15 +315,15 @@ defmodule Memcache.Connection do
 
     if receiver_queue do
       Enum.each(receiver_queue, fn from ->
-        Connection.reply(from, connection_closed_response(s))
+        Connection.reply(from, error_response(s))
       end)
     end
 
     :ok
   end
 
-  defp connection_closed_response(%State{server: server}) do
-    {{:error, :closed}, %{server: server}}
+  defp error_response(%State{server: server}, reason \\ :closed) do
+    {{:error, reason}, %{server: server}}
   end
 
   defp maybe_activate_sock(state) do
@@ -341,7 +341,7 @@ defmodule Memcache.Connection do
     if Enum.empty?(state.receiver_queue) do
       case :inet.setopts(state.sock, active: false) do
         :ok -> :ok
-        error -> {:disconnect, error, {:error, :closed}, state}
+        error -> {:disconnect, error, error_response(state), state}
       end
     else
       :ok
@@ -357,8 +357,8 @@ defmodule Memcache.Connection do
         :ok = Receiver.read(s.receiver, from, command, opts)
         {:noreply, s}
 
-      {:error, _reason} = error ->
-        {:disconnect, error, error, s}
+      {:error, reason} = error ->
+        {:disconnect, error, error_response(s, reason), s}
     end
   end
 
@@ -372,8 +372,8 @@ defmodule Memcache.Connection do
         :ok = Receiver.read_quiet(s.receiver, from, Enum.reverse([{i, :NOOP, [], []} | commands]))
         {:noreply, s}
 
-      {:error, _reason} = error ->
-        {:disconnect, error, error, s}
+      {:error, reason} = error ->
+        {:disconnect, error, error_response(s, reason), s}
     end
   end
 
