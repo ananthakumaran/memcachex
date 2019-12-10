@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 10 Dec 2019
+
+- add telemetry support [#23]
+
 ## [0.4.6] - 8 Aug 2019
 
 - fix dialyzer spec [#20]
