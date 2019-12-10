@@ -22,14 +22,15 @@ defmodule Memcache.Mixfile do
   end
 
   def application do
-    [applications: [:logger, :connection], mod: {Memcache.Application, []}]
+    [applications: [:logger, :connection, :telemetry], mod: {Memcache.Application, []}]
   end
 
   def deps() do
     [
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
       {:connection, "~> 1.0.3"},
+      {:telemetry, "~> 0.4.0"},
       {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0", optional: true},
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.20.0", only: :dev},
       {:exprof, "~> 0.2.0", only: :dev},
       {:mcd, github: "EchoTeam/mcd", only: :dev},

@@ -6,7 +6,7 @@ defmodule Memcache.Receiver do
   defmodule State do
     @moduledoc false
 
-    defstruct sock: nil, parent: nil, buffer: <<>>
+    defstruct sock: nil, parent: nil, buffer: <<>>, server: nil
   end
 
   def start_link(args) do
@@ -25,8 +25,8 @@ defmodule Memcache.Receiver do
     GenServer.cast(receiver, {:read_quiet, client, commands})
   end
 
-  def init([sock, parent]) do
-    {:ok, %State{sock: sock, parent: parent}}
+  def init([sock, parent, server]) do
+    {:ok, %State{sock: sock, parent: parent, server: server}}
   end
 
   def handle_cast({:read, client, command, opts}, %State{sock: sock, buffer: buffer} = s) do
@@ -38,7 +38,7 @@ defmodule Memcache.Receiver do
   end
 
   defp reply_or_disconnect({:ok, response, buffer}, client, s) do
-    Connection.reply(client, response)
+    Connection.reply(client, {response, %{server: s.server}})
     send(s.parent, {:receiver, :done, client, self()})
     {:noreply, %{s | buffer: buffer}}
   end

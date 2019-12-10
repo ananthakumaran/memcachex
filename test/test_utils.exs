@@ -1,4 +1,5 @@
 defmodule TestUtils do
+  require Logger
   import ExUnit.Assertions
   import ExUnit.CaptureLog
 
@@ -62,5 +63,25 @@ defmodule TestUtils do
         :ok -> :ok
       end
     end
+  end
+
+  def log_telemetry_events do
+    events = [
+      [:memcachex, :commands],
+      [:memcachex, :commands_error],
+      [:memcachex, :connection],
+      [:memcachex, :connection_error]
+    ]
+
+    :ok =
+      :telemetry.attach_many("memcachex-telemetry-handler", events, &handle_event/4, :no_config)
+  end
+
+  def handle_event([:memcachex, name], measurments, metadata, _config) do
+    Logger.info(
+      "Telemetry event: #{name}, measurements: #{inspect(measurments)}, metadata: #{
+        inspect(metadata)
+      }"
+    )
   end
 end
