@@ -1,6 +1,5 @@
 # Memcache
 
-[![Build Status](https://secure.travis-ci.org/ananthakumaran/memcachex.svg?branch=master)](http://travis-ci.org/ananthakumaran/memcachex)
 [![Hex.pm](https://img.shields.io/hexpm/v/memcachex.svg)](https://hex.pm/packages/memcachex)
 
 Memcached client for Elixir
