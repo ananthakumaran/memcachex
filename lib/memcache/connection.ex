@@ -47,6 +47,10 @@ defmodule Memcache.Connection do
     to be used in case of connection failure. Defaults to `500`
   * `:backoff_max` - (integer) maximum allowed interval between two
     connection attempt. Defaults to `30_000`
+  * `:timeout` - (integer) connection timeout (in milliseconds) at
+    which to terminate the connection attempt in case of an
+    unresponsive host. Defaults to :infinity. Default is configurable
+    via the :memcachex, :default_timeout application env.
 
   * `:auth` - (tuple) only plain authentication method is
     supported. It is specified using the following format `{:plain,
@@ -71,7 +75,10 @@ defmodule Memcache.Connection do
   ]
 
   defp with_defaults(opts) do
+    default_timeout = Application.get_env(:memcachex, :default_timeout, :infinity)
+
     @default_opts
+    |> Keyword.merge(timeout: default_timeout)
     |> Keyword.merge(opts)
     |> Keyword.update!(:hostname, &to_charlist/1)
   end
@@ -173,7 +180,7 @@ defmodule Memcache.Connection do
   def connect(info, %State{opts: opts, server: server} = s) do
     sock_opts = [:binary, active: false, packet: :raw]
 
-    case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, s) do
+    case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, opts[:timeout], s) do
       {:ok, sock} ->
         reconnected = info == :backoff || info == :reconnect
 
@@ -400,8 +407,8 @@ defmodule Memcache.Connection do
     end
   end
 
-  defp connect_and_authenticate(host, port, sock_opts, state) do
-    case :gen_tcp.connect(host, port, sock_opts) do
+  defp connect_and_authenticate(host, port, sock_opts, timeout, state) do
+    case :gen_tcp.connect(host, port, sock_opts, timeout) do
       {:ok, sock} ->
         with {:ok} <- authenticate(sock, state.opts),
              # Make sure the socket is usable
