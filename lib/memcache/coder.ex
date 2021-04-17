@@ -2,7 +2,7 @@ defmodule Memcache.Coder do
   @moduledoc """
   Defines the `Memcache.Coder` behaviour. A list would be passed to
   both `encode/2` and `decode/2` callbacks. This value can be
-  specified by the user. Defaults to `[]` incase it is not specified.
+  specified by the user. Defaults to `[]` in case it is not specified.
   """
 
   @doc """

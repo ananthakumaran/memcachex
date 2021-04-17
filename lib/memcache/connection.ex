@@ -52,7 +52,7 @@ defmodule Memcache.Connection do
     supported. It is specified using the following format `{:plain,
     "username", "password"}`. Defaults to `nil`.
 
-  ## Example
+  ## Examples
 
       {:ok, pid} = Memcache.Connection.start_link()
 
@@ -85,7 +85,7 @@ defmodule Memcache.Connection do
     data. This value will be either in second or third position
     of the returned tuple depending on the command. Defaults to `false`
 
-  ## Example
+  ## Examples
 
       iex> {:ok, pid} = Memcache.Connection.start_link()
       iex> {:ok} = Memcache.Connection.execute(pid, :SET, ["hello", "world"])
@@ -103,7 +103,7 @@ defmodule Memcache.Connection do
   @doc """
   Executes the list of quiet commands
 
-  ## Example
+  ## Examples
 
       iex> {:ok, pid} = Memcache.Connection.start_link()
       iex> {:ok, [{:ok}, {:ok}]} = Memcache.Connection.execute_quiet(pid, [{:SETQ, ["1", "one"]}, {:SETQ, ["2", "two"]}])
@@ -155,10 +155,12 @@ defmodule Memcache.Connection do
   @doc """
   Closes the connection to the memcached server.
 
-  ## Example
+  ## Examples
+
       iex> {:ok, pid} = Memcache.Connection.start_link()
       iex> Memcache.Connection.close(pid)
       {:ok}
+
   """
   @spec close(GenServer.server()) :: {:ok}
   def close(pid) do
