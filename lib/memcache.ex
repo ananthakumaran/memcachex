@@ -3,7 +3,7 @@ defmodule Memcache do
   This module provides a user friendly API to interact with the
   memcached server.
 
-  ## Example
+  ## Examples
 
       {:ok, pid} = Memcache.start_link()
       {:ok} = Memcache.set(pid, "hello", "world")
@@ -13,7 +13,7 @@ defmodule Memcache do
 
   `Memcache.Coder` allows you to specify how the value should be encoded before
   sending it to the server and how it should be decoded after it is
-  retrived. There are four built-in coders namely `Memcache.Coder.Raw`,
+  retrieved. There are four built-in coders namely `Memcache.Coder.Raw`,
   `Memcache.Coder.Erlang`, `Memcache.Coder.JSON`,
   `Memcache.Coder.ZIP`. Custom coders can be created by implementing
   the `Memcache.Coder` behaviour.
@@ -72,7 +72,7 @@ defmodule Memcache do
   Most the functions in this module accept an optional `Keyword`
   list. The below list specifies the behavior of each option. The list
   of option accepted by a specific function will be documented in the
-  specific funcion.
+  specific function.
 
   * `:cas` - (boolean) returns the CAS value associated with the
     data. This value will be either in second or third position
@@ -479,7 +479,7 @@ defmodule Memcache do
   end
 
   @doc """
-  Decremens the current value. Only integer value can be
+  Decrements the current value. Only integer value can be
   decremented. Returns `{:error, "Incr/Decr on non-numeric value"}` if
   the value stored in the server is not numeric.
 

@@ -2,27 +2,26 @@ defmodule Memcache.Mixfile do
   @moduledoc false
   use Mix.Project
 
+  @source_url "https://github.com/ananthakumaran/memcachex"
   @version "0.5.1"
 
   def project do
     [
       app: :memcachex,
       version: @version,
-      elixir: ">= 1.3.0",
-      description: "Memcached client",
+      elixir: "~> 1.6",
       package: package(),
+      deps: deps(),
       docs: docs(),
-      dialyzer: [
-        plt_add_deps: :transitive,
-        ignore_warnings: ".dialyzer_ignore",
-        flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
-      ],
-      deps: deps()
+      dialyzer: dialyzer()
     ]
   end
 
   def application do
-    [applications: [:logger, :connection, :telemetry], mod: {Memcache.Application, []}]
+    [
+      applications: [:logger, :connection, :telemetry],
+      mod: {Memcache.Application, []}
+    ]
   end
 
   def deps() do
@@ -31,7 +30,7 @@ defmodule Memcache.Mixfile do
       {:telemetry, "~> 0.4.0"},
       {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0", optional: true},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
-      {:ex_doc, "~> 0.20.0", only: :dev},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:exprof, "~> 0.2.0", only: :dev},
       {:mcd, github: "EchoTeam/mcd", only: :dev},
       {:benchee, "~> 0.6", only: :dev},
@@ -43,19 +42,36 @@ defmodule Memcache.Mixfile do
   end
 
   defp package do
-    %{
+    [
+      description: "Memcached client for Elixir",
       licenses: ["MIT"],
-      links: %{"Github" => "https://github.com/ananthakumaran/memcachex"},
-      maintainers: ["ananthakumaran@gmail.com"]
-    }
+      maintainers: ["ananthakumaran@gmail.com"],
+      links: %{
+        "Changelog" => "https://hexdocs.pm/memcachex/changelog.html",
+        "GitHub" => @source_url
+      }
+    ]
   end
 
   defp docs do
     [
-      source_url: "https://github.com/ananthakumaran/memcachex",
+      extras: [
+        "CHANGELOG.md",
+        {:"LICENSE.md", [title: "License"]},
+        "README.md"
+      ],
+      main: "readme",
+      source_url: @source_url,
       source_ref: "v#{@version}",
-      main: Memcache,
-      extras: ["README.md"]
+      formatters: ["html"]
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_add_deps: :transitive,
+      ignore_warnings: ".dialyzer_ignore",
+      flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
     ]
   end
 end
