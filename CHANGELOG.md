@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 24 April 2021
+
+- add connect_timeout option [#24]
+
 ## [0.5.0] - 10 Dec 2019
 
 - add telemetry support [#23]
