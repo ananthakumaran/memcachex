@@ -179,7 +179,13 @@ defmodule Memcache.Connection do
   def connect(info, %State{opts: opts, server: server} = s) do
     sock_opts = [:binary, active: false, packet: :raw]
 
-    case connect_and_authenticate(opts[:hostname], opts[:port], sock_opts, opts[:connect_timeout], s) do
+    case connect_and_authenticate(
+           opts[:hostname],
+           opts[:port],
+           sock_opts,
+           opts[:connect_timeout],
+           s
+         ) do
       {:ok, sock} ->
         reconnected = info == :backoff || info == :reconnect
 
