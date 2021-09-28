@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/ananthakumaran/memcachex/actions/workflows/ci.yml/badge.svg)](https://github.com/ananthakumaran/memcachex/actions/workflows/ci.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/memcachex.svg)](https://hex.pm/packages/memcachex)
-[![Module Version](https://img.shields.io/hexpm/v/memcachex.svg)](https://hex.pm/packages/memcachex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/memcachex/)
 [![Total Download](https://img.shields.io/hexpm/dt/memcachex.svg)](https://hex.pm/packages/memcachex)
 [![License](https://img.shields.io/hexpm/l/memcachex.svg)](https://github.com/ananthakumaran/memcachex/blob/master/LICENSE)
