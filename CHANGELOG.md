@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 26 Dec 2021
+
+- fix warnings on elixir 1.13
+
 ## [0.5.2] - 28 Sep 2021
 
 - relax telemetry version [#26]
