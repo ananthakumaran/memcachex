@@ -79,9 +79,7 @@ defmodule TestUtils do
 
   def handle_event([:memcachex, name], measurments, metadata, _config) do
     Logger.info(
-      "Telemetry event: #{name}, measurements: #{inspect(measurments)}, metadata: #{
-        inspect(metadata)
-      }"
+      "Telemetry event: #{name}, measurements: #{inspect(measurments)}, metadata: #{inspect(metadata)}"
     )
   end
 end

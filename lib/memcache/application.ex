@@ -4,10 +4,8 @@ defmodule Memcache.Application do
   use Application
 
   def start(_type, _args) do
-    import Supervisor.Spec
-
     children = [
-      worker(Memcache.Registry, [])
+      Memcache.Registry
     ]
 
     opts = [strategy: :one_for_one, name: Memcache.Supervisor]
