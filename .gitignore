@@ -30,3 +30,5 @@ bench/snapshots
 bench/graphs
 protocol.txt
 benchmark.rb
+/priv/plts/*.plt
+/priv/plts/*.plt.hash

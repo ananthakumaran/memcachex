@@ -67,7 +67,8 @@ defmodule Memcache.Mixfile do
     [
       plt_add_deps: :transitive,
       ignore_warnings: ".dialyzer_ignore",
-      flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs]
+      flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs],
+      plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
     ]
   end
 end
