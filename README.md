@@ -14,7 +14,7 @@ Memcached client for Elixir.
 ```elixir
 defp deps() do
   [
-    {:memcachex, "~> 0.5.3"}
+    {:memcachex, "~> 0.5"}
   ]
 end
 ```

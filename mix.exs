@@ -3,13 +3,13 @@ defmodule Memcache.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/ananthakumaran/memcachex"
-  @version "0.5.3"
+  @version "0.5.4"
 
   def project do
     [
       app: :memcachex,
       version: @version,
-      elixir: "~> 1.6",
+      elixir: "~> 1.7",
       package: package(),
       deps: deps(),
       docs: docs(),
