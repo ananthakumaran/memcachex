@@ -170,6 +170,10 @@ defmodule MemcacheTest do
     assert {:ok, 5} == Memcache.incr(pid, "incr", default: 5, ttl: 1)
     assert {:ok, 5} == Memcache.decr(pid, "decr", default: 5, ttl: 1)
 
+    assert {:ok} == Memcache.set(pid, "cas", "world", ttl: 999)
+    assert {:ok, "planet"} == Memcache.cas(pid, "cas", fn "world" -> "planet" end, ttl: 1)
+    assert {:ok, "planet"} == Memcache.get(pid, "cas")
+
     :timer.sleep(2000)
 
     assert {:error, "Key not found"} == Memcache.get(pid, "set")
@@ -177,6 +181,7 @@ defmodule MemcacheTest do
     assert {:error, "Key not found"} == Memcache.get(pid, "add")
     assert {:error, "Key not found"} == Memcache.get(pid, "incr")
     assert {:error, "Key not found"} == Memcache.get(pid, "decr")
+    assert {:error, "Key not found"} == Memcache.get(pid, "cas")
     assert {:error, "Key not found"} == Memcache.get(pid, "a")
     assert {:error, "Key not found"} == Memcache.get(pid, "b")
     assert {:error, "Key not found"} == Memcache.get(pid, "c")
