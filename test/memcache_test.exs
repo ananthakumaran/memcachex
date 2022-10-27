@@ -151,6 +151,11 @@ defmodule MemcacheTest do
     Task.await(task_c)
 
     assert {:ok, "300"} == Memcache.get(pid, "counter")
+
+    assert {:error, "Key not found"} = Memcache.cas(pid, "undefined", fn _ -> nil end)
+    assert {:ok, "default"} = Memcache.cas(pid, "undefined", fn _ -> nil end, default: "default")
+    assert {:ok, "default"} = Memcache.get(pid, "undefined")
+
     assert {:ok} = Memcache.stop(pid)
   end
 
