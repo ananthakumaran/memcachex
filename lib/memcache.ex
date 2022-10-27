@@ -293,7 +293,7 @@ defmodule Memcache do
     else
       @cas_error ->
         if Keyword.get(opts, :retry, true) do
-          cas(server, key, update)
+          cas(server, key, update, opts)
         else
           @cas_error
         end
