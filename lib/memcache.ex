@@ -296,9 +296,12 @@ defmodule Memcache do
       {:ok, new_value}
     else
       {:error, "Key not found"} = err ->
-        case Keyword.fetch(opts, :default) do
-          {:ok, default} -> set(server, key, default, ttl_opts)
+        with {:ok, default} <- Keyword.fetch(opts, :default),
+             {:ok} <- set(server, key, default) do
+          {:ok, default}
+        else
           :error -> err
+          set_err -> set_err
         end
 
       @cas_error ->
