@@ -273,23 +273,27 @@ defmodule Memcache do
 
   1. Get the existing value for key
   2. If it exists, call the update function with the value
-  3. Set the returned value for key
+  3. Set the returned value for key, with optionally-provided TTL
 
   The 3rd operation will fail if someone else has updated the value
   for the same key in the mean time. In that case, by default, this
   function will go to step 1 and try again. Retry behavior can be
   disabled by passing `[retry: false]` option.
+
+  Accepted options: `:retry`, `:ttl`
   """
   @spec cas(GenServer.server(), binary, (value -> value), Keyword.t()) :: {:ok, any} | error
   def cas(server, key, update, opts \\ []) do
+    ttl_opts = Keyword.take(opts, [:ttl])
+
     with {:ok, value, cas} <- get(server, key, cas: true),
          new_value = update.(value),
-         {:ok} <- set_cas(server, key, new_value, cas) do
+         {:ok} <- set_cas(server, key, new_value, cas, ttl_opts) do
       {:ok, new_value}
     else
       @cas_error ->
         if Keyword.get(opts, :retry, true) do
-          cas(server, key, update)
+          cas(server, key, update, opts)
         else
           @cas_error
         end
