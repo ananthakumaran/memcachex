@@ -238,6 +238,19 @@ defmodule MemcacheTest do
     assert {:ok, "planet"} == Memcache.cas(pid, "cas", fn "world" -> "planet" end, ttl: 1)
     assert {:ok, "planet"} == Memcache.get(pid, "cas")
 
+    assert {:ok, "default"} ==
+             Memcache.cas(pid, "cas_default", fn _ -> nil end, default: "default", ttl: 1)
+
+    assert {:ok, "default"} == Memcache.get(pid, "cas_default")
+
+    assert {:ok, "lazy_default"} ==
+             Memcache.cas(pid, "cas_lazy_default", fn _ -> nil end,
+               default: fn -> "lazy_default" end,
+               ttl: 1
+             )
+
+    assert {:ok, "lazy_default"} == Memcache.get(pid, "cas_lazy_default")
+
     :timer.sleep(2000)
 
     assert {:error, "Key not found"} == Memcache.get(pid, "set")
@@ -246,6 +259,8 @@ defmodule MemcacheTest do
     assert {:error, "Key not found"} == Memcache.get(pid, "incr")
     assert {:error, "Key not found"} == Memcache.get(pid, "decr")
     assert {:error, "Key not found"} == Memcache.get(pid, "cas")
+    assert {:error, "Key not found"} == Memcache.get(pid, "cas_default")
+    assert {:error, "Key not found"} == Memcache.get(pid, "cas_lazy_default")
     assert {:error, "Key not found"} == Memcache.get(pid, "a")
     assert {:error, "Key not found"} == Memcache.get(pid, "b")
     assert {:error, "Key not found"} == Memcache.get(pid, "c")
