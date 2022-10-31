@@ -297,11 +297,12 @@ defmodule Memcache do
     else
       {:error, "Key not found"} = err ->
         with {:ok, default} <- Keyword.fetch(opts, :default),
-             {:ok} <- set(server, key, default) do
+             {:ok} <- add(server, key, default) do
           {:ok, default}
         else
           :error -> err
-          set_err -> set_err
+          # The key was added since the initial get, so we restart the cas
+          {:error, "Key exists"} -> cas(server, key, update, opts)
         end
 
       @cas_error ->

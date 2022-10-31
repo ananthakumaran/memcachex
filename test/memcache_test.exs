@@ -152,11 +152,27 @@ defmodule MemcacheTest do
 
     assert {:ok, "300"} == Memcache.get(pid, "counter")
 
+    assert {:ok} = Memcache.stop(pid)
+  end
+
+  test "cas_default" do
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
+    assert {:ok} = Memcache.flush(pid)
+
+    1..300
+    |> Task.async_stream(
+      fn _i ->
+        Memcache.cas(pid, "counter", &Integer.to_string(String.to_integer(&1) + 1), default: "1")
+      end,
+      max_concurrency: 5
+    )
+    |> Stream.run()
+
+    assert {:ok, "300"} == Memcache.get(pid, "counter")
+
     assert {:error, "Key not found"} = Memcache.cas(pid, "undefined", fn _ -> nil end)
     assert {:ok, "default"} = Memcache.cas(pid, "undefined", fn _ -> nil end, default: "default")
     assert {:ok, "default"} = Memcache.get(pid, "undefined")
-
-    assert {:ok} = Memcache.stop(pid)
   end
 
   test "expire" do
