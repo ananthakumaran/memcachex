@@ -309,7 +309,7 @@ defmodule Memcache do
     else
       {:error, "Key not found"} = err ->
         with {:ok, default} <- Keyword.fetch(opts, :default),
-             {:ok, result} <- cas_try_add_default(server, key, default, ttl_opts) do
+             {:ok, result} <- cas_add_default(server, key, default, ttl_opts) do
           {:ok, result}
         else
           :error -> err
@@ -602,11 +602,11 @@ defmodule Memcache do
   defp normalize_coder(spec) when is_tuple(spec), do: spec
   defp normalize_coder(module) when is_atom(module), do: {module, []}
 
-  defp cas_try_add_default(server, key, default_fun, ttl_opts) when is_function(default_fun, 0) do
-    cas_try_add_default(server, key, default_fun.(), ttl_opts)
+  defp cas_add_default(server, key, default_fun, ttl_opts) when is_function(default_fun, 0) do
+    cas_add_default(server, key, default_fun.(), ttl_opts)
   end
 
-  defp cas_try_add_default(server, key, default, ttl_opts) do
+  defp cas_add_default(server, key, default, ttl_opts) do
     with {:ok} <- add(server, key, default, ttl_opts) do
       {:ok, default}
     end
