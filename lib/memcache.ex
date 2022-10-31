@@ -271,20 +271,32 @@ defmodule Memcache do
   @doc """
   Compare and swap value using optimistic locking.
 
+  "Happy path":
   1. Get the existing value for key
   2. If it exists, call the update function with the value
-  3. Set the returned value for key, with optionally-provided TTL
+  3. Set the returned value for key
 
-  If the key does not exist when looked up in the 1st operation,
-  and a `:default` option is passed, the key will be set with the provided default value.
-  Otherwise, `{:error, "Key not found"}` will be returned.
+  The update can be retried in case an intervening update happened.
 
-  The 3rd operation will fail if someone else has updated the value
-  for the same key in the mean time. In that case, by default, this
-  function will go to step 1 and try again. Retry behavior can be
-  disabled by passing `[retry: false]` option.
+  A default value can also be provided, to be used if the key does not yet exist.
 
-  Accepted options: `:retry`, `:ttl`, `:default`
+  See the description of options below for details.
+
+  ## Options
+
+    * `:retry` - whether the update should be retried if someone else
+      has updated the value for the same key in the meantime. Defaults to `true`.
+
+    * `:ttl` - TTL for the updated key. Defaults to the TTL passed when starting
+      the server via `start_link/2`, or infinity if none was given there either.
+
+    * `:default` - a default value to use if the key does not yet exist. If a 0-arity function
+      is passed for this value, the default value will be lazily evaluated only when needed.
+      This is useful in cases where the default is expensive to compute.
+      If a `:default` opt is not passed, the function will return `{:error, "Key not found"}`
+      when attempting to update a nonexistent key.\\
+      NOTE: If a key is created after the initial GET and before the default value is ADDed,
+      the update will be retried at least once regardless of the value of the `:retry` opt.
   """
   @spec cas(GenServer.server(), binary, (value -> value), Keyword.t()) :: {:ok, any} | error
   def cas(server, key, update, opts \\ []) do
@@ -297,11 +309,10 @@ defmodule Memcache do
     else
       {:error, "Key not found"} = err ->
         with {:ok, default} <- Keyword.fetch(opts, :default),
-             {:ok} <- add(server, key, default, ttl_opts) do
-          {:ok, default}
+             {:ok, result} <- cas_try_add_default(server, key, default, ttl_opts) do
+          {:ok, result}
         else
           :error -> err
-          # The key was added since the initial get, so we restart the cas
           {:error, "Key exists"} -> cas(server, key, update, opts)
         end
 
@@ -314,6 +325,16 @@ defmodule Memcache do
 
       err ->
         err
+    end
+  end
+
+  defp cas_try_add_default(server, key, default_fun, ttl_opts) when is_function(default_fun, 0) do
+    cas_try_add_default(server, key, default_fun.(), ttl_opts)
+  end
+
+  defp cas_try_add_default(server, key, default, ttl_opts) do
+    with {:ok} <- add(server, key, default, ttl_opts) do
+      {:ok, default}
     end
   end
 
