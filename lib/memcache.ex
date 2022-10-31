@@ -328,16 +328,6 @@ defmodule Memcache do
     end
   end
 
-  defp cas_try_add_default(server, key, default_fun, ttl_opts) when is_function(default_fun, 0) do
-    cas_try_add_default(server, key, default_fun.(), ttl_opts)
-  end
-
-  defp cas_try_add_default(server, key, default, ttl_opts) do
-    with {:ok} <- add(server, key, default, ttl_opts) do
-      {:ok, default}
-    end
-  end
-
   @doc """
   Sets the key to value if the key doesn't exist already. Returns
   `{:error, "Key exists"}` if the given key already exists.
@@ -611,6 +601,16 @@ defmodule Memcache do
 
   defp normalize_coder(spec) when is_tuple(spec), do: spec
   defp normalize_coder(module) when is_atom(module), do: {module, []}
+
+  defp cas_try_add_default(server, key, default_fun, ttl_opts) when is_function(default_fun, 0) do
+    cas_try_add_default(server, key, default_fun.(), ttl_opts)
+  end
+
+  defp cas_try_add_default(server, key, default, ttl_opts) do
+    with {:ok} <- add(server, key, default, ttl_opts) do
+      {:ok, default}
+    end
+  end
 
   defp encode(server_options, value) do
     coder = server_options.coder
