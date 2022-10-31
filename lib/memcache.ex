@@ -307,13 +307,14 @@ defmodule Memcache do
          {:ok} <- set_cas(server, key, new_value, cas, ttl_opts) do
       {:ok, new_value}
     else
-      {:error, "Key not found"} = err ->
+      {:error, "Key not found"} = key_not_found_error ->
         with {:ok, default} <- Keyword.fetch(opts, :default),
              {:ok, result} <- cas_add_default(server, key, default, ttl_opts) do
           {:ok, result}
         else
-          :error -> err
+          :error -> key_not_found_error
           {:error, "Key exists"} -> cas(server, key, update, opts)
+          add_error -> add_error
         end
 
       @cas_error ->
@@ -323,8 +324,8 @@ defmodule Memcache do
           @cas_error
         end
 
-      err ->
-        err
+      set_cas_error ->
+        set_cas_error
     end
   end
 
