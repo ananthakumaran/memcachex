@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- add ttl and default option in cas/4 [#29]  [#31]
+
 ## [0.5.4] - 26 Dec 2021
 
 - relax connection version
