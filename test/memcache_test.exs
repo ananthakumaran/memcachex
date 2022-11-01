@@ -151,7 +151,71 @@ defmodule MemcacheTest do
     Task.await(task_c)
 
     assert {:ok, "300"} == Memcache.get(pid, "counter")
+
     assert {:ok} = Memcache.stop(pid)
+  end
+
+  test "cas_default" do
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
+    assert {:ok} = Memcache.flush(pid)
+
+    1..300
+    |> Task.async_stream(
+      fn _i ->
+        Memcache.cas(pid, "counter", &Integer.to_string(String.to_integer(&1) + 1), default: "1")
+      end,
+      max_concurrency: 5
+    )
+    |> Stream.run()
+
+    assert {:ok, "300"} == Memcache.get(pid, "counter")
+
+    assert {:error, "Key not found"} = Memcache.cas(pid, "new_key", fn _ -> nil end)
+    assert {:ok, "default"} = Memcache.cas(pid, "new_key", fn _ -> nil end, default: "default")
+    assert {:ok, "default"} = Memcache.get(pid, "new_key")
+  end
+
+  test "cas_lazy_default" do
+    assert {:ok, pid} = Memcache.start_link(port: 21_211)
+    assert {:ok} = Memcache.flush(pid)
+
+    expensive_fun = fn ->
+      :timer.sleep(50)
+      "1"
+    end
+
+    cas_with_expensive_lazy_default = fn ->
+      Memcache.cas(pid, "new_key", fn "add" -> "cas" end, default: expensive_fun, ttl: 1)
+    end
+
+    delayed_add = fn ->
+      :timer.sleep(10)
+      Memcache.add(pid, "new_key", "add")
+    end
+
+    [
+      cas_with_expensive_lazy_default,
+      delayed_add
+    ]
+    |> Task.async_stream(& &1.())
+    |> Stream.run()
+
+    assert {:ok, "cas"} == Memcache.get(pid, "new_key")
+    :timer.sleep(2000)
+    assert {:error, "Key not found"} = Memcache.get(pid, "new_key")
+
+    1..300
+    |> Task.async_stream(
+      fn _i ->
+        Memcache.cas(pid, "counter", &Integer.to_string(String.to_integer(&1) + 1),
+          default: expensive_fun
+        )
+      end,
+      max_concurrency: 5
+    )
+    |> Stream.run()
+
+    assert {:ok, "300"} == Memcache.get(pid, "counter")
   end
 
   test "expire" do
@@ -174,6 +238,19 @@ defmodule MemcacheTest do
     assert {:ok, "planet"} == Memcache.cas(pid, "cas", fn "world" -> "planet" end, ttl: 1)
     assert {:ok, "planet"} == Memcache.get(pid, "cas")
 
+    assert {:ok, "default"} ==
+             Memcache.cas(pid, "cas_default", fn _ -> nil end, default: "default", ttl: 1)
+
+    assert {:ok, "default"} == Memcache.get(pid, "cas_default")
+
+    assert {:ok, "lazy_default"} ==
+             Memcache.cas(pid, "cas_lazy_default", fn _ -> nil end,
+               default: fn -> "lazy_default" end,
+               ttl: 1
+             )
+
+    assert {:ok, "lazy_default"} == Memcache.get(pid, "cas_lazy_default")
+
     :timer.sleep(2000)
 
     assert {:error, "Key not found"} == Memcache.get(pid, "set")
@@ -182,6 +259,8 @@ defmodule MemcacheTest do
     assert {:error, "Key not found"} == Memcache.get(pid, "incr")
     assert {:error, "Key not found"} == Memcache.get(pid, "decr")
     assert {:error, "Key not found"} == Memcache.get(pid, "cas")
+    assert {:error, "Key not found"} == Memcache.get(pid, "cas_default")
+    assert {:error, "Key not found"} == Memcache.get(pid, "cas_lazy_default")
     assert {:error, "Key not found"} == Memcache.get(pid, "a")
     assert {:error, "Key not found"} == Memcache.get(pid, "b")
     assert {:error, "Key not found"} == Memcache.get(pid, "c")
