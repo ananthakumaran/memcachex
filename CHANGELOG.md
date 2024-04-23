@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6] - 23 April 2024
+
+- support poison 5.x
+
 ## [0.5.5] - 1 November 2022
 
 - add ttl and default option in cas/4 [#29]  [#31]
