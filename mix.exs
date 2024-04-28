@@ -19,7 +19,7 @@ defmodule Memcache.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger, :inets],
+      extra_applications: [:logger, :inets, :ssl],
       mod: {Memcache.Application, []}
     ]
   end

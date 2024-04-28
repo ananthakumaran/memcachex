@@ -57,6 +57,8 @@ defmodule Memcache.Connection do
     supported. It is specified using the following format `{:plain,
     "username", "password"}`. Defaults to `nil`.
 
+  * `:ssl_options` - (keyword) SSL options, see `https://www.erlang.org/doc/man/ssl#type-tls_client_option`.
+
   ## Examples
 
       {:ok, pid} = Memcache.Connection.start_link()
@@ -176,7 +178,7 @@ defmodule Memcache.Connection do
   end
 
   def init(opts) do
-    transport = :gen_tcp
+    transport = if Keyword.get(opts, :ssl, false), do: :ssl, else: :gen_tcp
     {:connect, :init, %State{opts: opts, server: Utils.format_host(opts), transport: transport}}
   end
 
@@ -417,7 +419,7 @@ defmodule Memcache.Connection do
   end
 
   defp connect_and_authenticate(host, port, sock_opts, timeout, state) do
-    case Transport.connect(state.transport, host, port, sock_opts, timeout) do
+    case Transport.connect(state.transport, host, port, sock_opts, timeout, state.opts) do
       {:ok, sock} ->
         with {:ok} <- authenticate(sock, state.opts),
              # Make sure the socket is usable
