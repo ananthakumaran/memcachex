@@ -1,0 +1,1 @@
+openssl req -nodes -new -x509 -keyout memcache.key -out memcache.cert
