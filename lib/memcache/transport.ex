@@ -1,10 +1,14 @@
 defmodule Memcache.Transport do
   defstruct [:transport, :sock]
 
-  def connect(:gen_tcp, host, port, sock_opts, timeout) do
-    case :gen_tcp.connect(host, port, sock_opts, timeout) do
+  def connect(transport, host, port, sock_opts, timeout, opts)
+      when transport in [:gen_tcp, :ssl] do
+    ssl_opts = Keyword.get(opts, :ssl_options, [])
+    sock_opts = sock_opts ++ ssl_opts
+
+    case transport.connect(host, port, sock_opts, timeout) do
       {:ok, sock} ->
-        {:ok, %__MODULE__{transport: :gen_tcp, sock: sock}}
+        {:ok, %__MODULE__{transport: transport, sock: sock}}
 
       error ->
         error
@@ -13,6 +17,10 @@ defmodule Memcache.Transport do
 
   def setopts(%{transport: :gen_tcp, sock: sock}, opts) do
     :inet.setopts(sock, opts)
+  end
+
+  def setopts(%{transport: :ssl, sock: sock}, opts) do
+    :ssl.setopts(sock, opts)
   end
 
   def send(%{transport: transport, sock: sock}, data) do
