@@ -8,6 +8,7 @@ defmodule Memcache.Connection do
   alias Memcache.Protocol
   alias Memcache.Receiver
   alias Memcache.Utils
+  alias Memcache.Transport
 
   defmodule State do
     @moduledoc false
@@ -17,7 +18,8 @@ defmodule Memcache.Connection do
               backoff_current: nil,
               receiver: nil,
               receiver_queue: nil,
-              server: nil
+              server: nil,
+              transport: nil
   end
 
   @doc """
@@ -70,8 +72,9 @@ defmodule Memcache.Connection do
     backoff_initial: 500,
     backoff_max: 30_000,
     connect_timeout: :infinity,
-    hostname: 'localhost',
-    port: 11_211
+    hostname: ~c"localhost",
+    port: 11_211,
+    transport: :gen_tcp
   ]
 
   defp with_defaults(opts) do
@@ -173,7 +176,8 @@ defmodule Memcache.Connection do
   end
 
   def init(opts) do
-    {:connect, :init, %State{opts: opts, server: Utils.format_host(opts)}}
+    transport = :gen_tcp
+    {:connect, :init, %State{opts: opts, server: Utils.format_host(opts), transport: transport}}
   end
 
   def connect(info, %State{opts: opts, server: server} = s) do
@@ -314,7 +318,7 @@ defmodule Memcache.Connection do
 
   def cleanup(%State{sock: sock, receiver: receiver, receiver_queue: receiver_queue} = s) do
     if sock do
-      :ok = :gen_tcp.close(sock)
+      :ok = Transport.close(sock)
     end
 
     if receiver do
@@ -340,7 +344,7 @@ defmodule Memcache.Connection do
 
   defp maybe_activate_sock(state) do
     if Enum.empty?(state.receiver_queue) do
-      case :inet.setopts(state.sock, active: :once) do
+      case Transport.setopts(state.sock, active: :once) do
         :ok -> {:noreply, state}
         error -> {:disconnect, error, state}
       end
@@ -351,7 +355,7 @@ defmodule Memcache.Connection do
 
   defp maybe_deactivate_sock(state) do
     if Enum.empty?(state.receiver_queue) do
-      case :inet.setopts(state.sock, active: false) do
+      case Transport.setopts(state.sock, active: false) do
         :ok -> :ok
         error -> {:disconnect, error, error_response(state), state}
       end
@@ -363,7 +367,7 @@ defmodule Memcache.Connection do
   defp send_and_receive(%State{sock: sock} = s, from, command, args, opts) do
     packet = serialize(command, args)
 
-    case :gen_tcp.send(sock, packet) do
+    case Transport.send(sock, packet) do
       :ok ->
         s = enqueue_receiver(s, from)
         :ok = Receiver.read(s.receiver, from, command, opts)
@@ -378,7 +382,7 @@ defmodule Memcache.Connection do
     {packet, commands, i} = Enum.reduce(commands, {[], [], 1}, &accumulate_commands/2)
     packet = [packet | serialize(:NOOP, [], i)]
 
-    case :gen_tcp.send(sock, packet) do
+    case Transport.send(sock, packet) do
       :ok ->
         s = enqueue_receiver(s, from)
         :ok = Receiver.read_quiet(s.receiver, from, Enum.reverse([{i, :NOOP, [], []} | commands]))
@@ -413,16 +417,16 @@ defmodule Memcache.Connection do
   end
 
   defp connect_and_authenticate(host, port, sock_opts, timeout, state) do
-    case :gen_tcp.connect(host, port, sock_opts, timeout) do
+    case Transport.connect(state.transport, host, port, sock_opts, timeout) do
       {:ok, sock} ->
         with {:ok} <- authenticate(sock, state.opts),
              # Make sure the socket is usable
              {:ok, _} <- execute_command(sock, :NOOP, []),
-             :ok <- :inet.setopts(sock, active: :once) do
+             :ok <- Transport.setopts(sock, active: :once) do
           {:ok, sock}
         else
           error ->
-            :gen_tcp.close(sock)
+            Transport.close(sock)
             error
         end
 
@@ -442,7 +446,7 @@ defmodule Memcache.Connection do
   defp execute_command(sock, command, args) do
     packet = serialize(command, args)
 
-    case :gen_tcp.send(sock, packet) do
+    case Transport.send(sock, packet) do
       :ok -> recv_response(sock, command)
       error -> error
     end

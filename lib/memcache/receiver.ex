@@ -2,6 +2,7 @@ defmodule Memcache.Receiver do
   @moduledoc false
   use GenServer
   alias Memcache.Protocol
+  alias Memcache.Transport
 
   defmodule State do
     @moduledoc false
@@ -161,7 +162,7 @@ defmodule Memcache.Receiver do
   end
 
   defp read(sock, buffer, min_required) do
-    case :gen_tcp.recv(sock, 0) do
+    case Transport.recv(sock, 0) do
       {:ok, data} -> read(sock, buffer <> data, min_required)
       {:error, reason} -> {:error, reason}
     end
