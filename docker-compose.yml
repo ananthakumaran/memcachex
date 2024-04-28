@@ -7,7 +7,7 @@ services:
   memcache_ssl:
     container_name: memcache_ssl
     image: memcached:alpine
-    command: memcached -p 31211 --enable-ssl -o ssl_chain_cert=/etc/localcerts/memcache.cert,ssl_key=/etc/localcerts/memcache.key -vvv
+    command: memcached -p 31211 --enable-ssl -o ssl_chain_cert=/etc/localcerts/memcache.cert,ssl_key=/etc/localcerts/memcache.key
     volumes:
       - "./docker/localcerts:/etc/localcerts"
     ports:
