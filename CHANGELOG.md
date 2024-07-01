@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.7] - 1 July 2024
+
+- add SSL support
+- support poison 6.x
+
 ## [0.5.6] - 23 April 2024
 
 - support poison 5.x

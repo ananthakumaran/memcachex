@@ -3,7 +3,7 @@ defmodule Memcache.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/ananthakumaran/memcachex"
-  @version "0.5.6"
+  @version "0.5.7"
 
   def project do
     [
