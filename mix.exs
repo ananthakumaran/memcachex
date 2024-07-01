@@ -28,7 +28,7 @@ defmodule Memcache.Mixfile do
     [
       {:connection, "~> 1.0"},
       {:telemetry, "~> 0.4.0 or ~> 1.0"},
-      {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0 or ~> 5.0", optional: true},
+      {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0 or ~> 5.0 or ~> 6.0", optional: true},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:exprof, "~> 0.2.0", only: :dev},
