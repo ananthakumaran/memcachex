@@ -9,20 +9,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: 1.8.2
-            otp: 21.3
-          - elixir: 1.9.4
-            otp: 22.2
-          - elixir: 1.10.4
+          - elixir: 1.11
             otp: 23.0
           - elixir: 1.13.0
             otp: 24.1
+          - elixir: 1.15
+            otp: 25
+          - elixir: 1.18.1
+            otp: 27
             check_warnings: true
             check_format: true
             dialyzer: true
     steps:
       - uses: actions/checkout@v2
-      - run: docker-compose up -d
+      - run: docker compose up -d
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
@@ -50,4 +50,4 @@ jobs:
         run: mix dialyzer --plt
       - name: Run dialyzer
         if: ${{ matrix.dialyzer }}
-        run: mix dialyzer
+        run: mix dialyzer --format github --format dialyxir
