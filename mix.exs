@@ -9,7 +9,7 @@ defmodule Memcache.Mixfile do
     [
       app: :memcachex,
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.11",
       package: package(),
       deps: deps(),
       docs: docs(),
@@ -29,9 +29,9 @@ defmodule Memcache.Mixfile do
       {:connection, "~> 1.0"},
       {:telemetry, "~> 0.4.0 or ~> 1.0"},
       {:poison, "~> 2.1 or ~> 3.0 or ~> 4.0 or ~> 5.0 or ~> 6.0", optional: true},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:exprof, "~> 0.2.0", only: :dev},
+      {:exprof, "~> 0.2", only: :dev},
       {:benchee, "~> 0.6", only: :dev},
       {:toxiproxy, "~> 0.3", only: :test}
     ]
@@ -65,9 +65,9 @@ defmodule Memcache.Mixfile do
 
   defp dialyzer do
     [
-      plt_add_deps: :transitive,
+      plt_add_deps: :app_tree,
       ignore_warnings: ".dialyzer_ignore",
-      flags: [:unmatched_returns, :race_conditions, :error_handling, :underspecs],
+      flags: [:unmatched_returns, :error_handling, :underspecs],
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
     ]
   end

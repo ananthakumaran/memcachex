@@ -308,7 +308,7 @@ defmodule Memcache.Connection do
   end
 
   def handle_info(msg, state) do
-    _ = Logger.warn(["Unknown message: ", inspect(msg)])
+    _ = Logger.warning(["Unknown message: ", inspect(msg)])
     {:noreply, state}
   end
 
@@ -466,7 +466,7 @@ defmodule Memcache.Connection do
         end
 
       {:ok, {:error, "Unknown command"}} ->
-        _ = Logger.warn("Authentication not required/supported by server")
+        _ = Logger.warning("Authentication not required/supported by server")
         {:ok}
 
       {:ok, {:error, reason}} ->
