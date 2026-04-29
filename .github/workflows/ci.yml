@@ -21,7 +21,7 @@ jobs:
             check_format: true
             dialyzer: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       - run: docker compose up -d
       - uses: erlef/setup-beam@v1
         with:
@@ -34,7 +34,7 @@ jobs:
         if: ${{ matrix.check_warnings }}
       - run: mix test --trace
       - name: Restore PLT cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         if: ${{ matrix.dialyzer }}
         id: plt_cache
         with:
